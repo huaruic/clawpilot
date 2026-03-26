@@ -1,0 +1,101 @@
+{
+  "name": "clawpilot",
+  "version": "1.0.0",
+  "description": "Local AI agent desktop app powered by OpenClaw, Electron, and provider-ready runtime packaging.",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "bootstrap": "node scripts/bootstrap-runtime.mjs",
+    "dev": "npm run bootstrap && electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run bootstrap && npm run build && electron-builder",
+    "package:mac": "npm run bootstrap && npm run build && electron-builder --mac",
+    "package:mac:test": "npm run bootstrap && npm run build && electron-builder --mac dir && bash scripts/package-mac-test.sh",
+    "package:win": "npm run bootstrap && npm run build && electron-builder --win"
+  },
+  "keywords": [
+    "ai-agent",
+    "desktop-app",
+    "electron",
+    "llm",
+    "local-ai",
+    "ollama",
+    "openclaw",
+    "react",
+    "typescript"
+  ],
+  "author": "ClawPilot",
+  "license": "MIT",
+  "homepage": "https://github.com/openclaw/clawpilot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/clawpilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/openclaw/clawpilot/issues"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "json5": "^2.2.3",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "ws": "^8.18.0",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@tailwindcss/vite": "^4.0.12",
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/ws": "^8.5.14",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.12",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.1"
+  },
+  "build": {
+    "appId": "ai.openclaw.clawpilot",
+    "productName": "ClawPilot",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "openclaw",
+        "repo": "clawpilot"
+      }
+    ],
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".clawpilot-runtime/runtime/${os}",
+        "to": "runtime/${os}"
+      },
+      {
+        "from": ".clawpilot-runtime/openclaw",
+        "to": "openclaw"
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

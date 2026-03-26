@@ -1,0 +1,59 @@
+;; macOS sandbox-exec profile for OpenClaw gateway process
+;; Restricts file system access to OPENCLAW_STATE_DIR and system libraries
+
+(version 1)
+(deny default)
+
+;; Allow network connections (needed for LLM API calls)
+(allow network*)
+
+;; Allow process execution of self
+(allow process-exec)
+(allow process-fork)
+
+;; Allow reading system libraries and frameworks
+(allow file-read*
+  (subpath "/usr/lib")
+  (subpath "/usr/share")
+  (subpath "/System/Library")
+  (subpath "/private/var/db/timezone")
+  (subpath "/Library/Frameworks")
+  (subpath "/Library/Developer")
+  (literal "/dev/urandom")
+  (literal "/dev/random")
+  (literal "/dev/null")
+  (literal "/dev/zero")
+)
+
+;; RESOURCES_PATH is injected by the Electron wrapper via sandbox-exec -D...
+;; and points at the packaged app resources directory.
+;; Allow reading node binary and openclaw itself
+(allow file-read*
+  (subpath (param "RESOURCES_PATH"))
+)
+
+;; STATE_DIR is injected by the Electron wrapper and points at the writable
+;; Application Support state dir for config, workspace, and runtime data.
+;; Allow read/write to the openclaw state directory (userData/openclaw/)
+(allow file-read* file-write*
+  (subpath (param "STATE_DIR"))
+)
+
+;; TMPDIR is injected by the Electron wrapper so sandboxed runs can still use
+;; the system temp directory for transient files.
+;; Allow read to temp dir
+(allow file-read* file-write*
+  (subpath (param "TMPDIR"))
+)
+
+;; Allow signal handling
+(allow signal (target self))
+
+;; Allow mach IPC (required for Node.js)
+(allow mach*)
+
+;; Allow sysctl reads
+(allow sysctl-read)
+
+;; Allow iokit (needed by Node.js internals)
+(allow iokit-open)
