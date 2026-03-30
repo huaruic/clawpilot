@@ -54,6 +54,49 @@ export interface OllamaStatus {
   error?: string
 }
 
+export interface DiagnosticIssue {
+  category: 'runtime' | 'config' | 'provider' | 'channel' | 'skill' | 'workspace'
+  severity: 'error' | 'warning' | 'info'
+  title: string
+  description: string
+  details?: string
+  fixable: boolean
+  fixCommand?: string
+}
+
+export interface DiagnosticReport {
+  timestamp: number
+  overallStatus: 'healthy' | 'warning' | 'error'
+  issues: DiagnosticIssue[]
+  systemInfo: {
+    platform: string
+    nodeVersion: string
+    openclawVersion?: string
+    stateDir: string
+  }
+}
+
+export interface DiagnosticFixResult {
+  success: boolean
+  message: string
+  output?: string
+}
+
+export interface LogEntry {
+  timestamp: number
+  level: 'debug' | 'info' | 'warn' | 'error'
+  message: string
+  source?: string
+  details?: Record<string, unknown>
+}
+
+export interface LogFile {
+  name: string
+  path: string
+  size: number
+  mtime: number
+}
+
 export interface FeishuConfigInfo {
   enabled: boolean
   connectionMode: 'websocket' | 'webhook'
@@ -111,6 +154,11 @@ export interface ClawPilotAPI {
     getSettings: () => Promise<AppSettings>
     updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
     getSystemLocale: () => Promise<string>
+    showSaveDialog: (params?: {
+      title?: string
+      defaultPath?: string
+      filters?: Array<{ name: string; extensions: string[] }>
+    }) => Promise<string | null>
     chooseWorkspaceRoot: () => Promise<string | null>
     setWorkspaceRoot: (workspaceRoot: string) => Promise<RuntimeSnapshot>
     resetWorkspaceRoot: () => Promise<RuntimeSnapshot>
@@ -172,6 +220,30 @@ export interface ClawPilotAPI {
     status: () => Promise<OllamaStatus>
     pullRecommended: () => Promise<{ ok: boolean }>
     openInstallPage: () => Promise<{ ok: boolean }>
+  }
+  diagnostics: {
+    run: () => Promise<DiagnosticReport>
+    quickCheck: () => Promise<{ healthy: boolean; criticalIssues: DiagnosticIssue[] }>
+    fix: (issue: DiagnosticIssue) => Promise<DiagnosticFixResult>
+    exportBundle: (params: { outputPath: string }) => Promise<void>
+  }
+  logs: {
+    list: () => Promise<LogFile[]>
+    readFile: (params: { filename: string; limit?: number; offset?: number }) => Promise<string>
+    parse: (params: { filename: string; limit?: number; level?: LogEntry['level'] }) => Promise<LogEntry[]>
+    search: (params: {
+      query: string
+      files?: string[]
+      level?: LogEntry['level']
+      limit?: number
+    }) => Promise<Array<LogEntry & { file: string }>>
+    recent: (params: { limit?: number; level?: LogEntry['level'] }) => Promise<LogEntry[]>
+    clean: (params: { keepDays?: number; keepCount?: number }) => Promise<number>
+    export: (params: {
+      outputPath: string
+      files?: string[]
+      level?: LogEntry['level']
+    }) => Promise<void>
   }
 }
 
