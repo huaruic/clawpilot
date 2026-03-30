@@ -93,6 +93,7 @@ export function SkillsPage(): React.ReactElement {
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
     void loadSkills(true)
@@ -170,6 +171,41 @@ export function SkillsPage(): React.ReactElement {
     }
   }
 
+  async function handleInstall(): Promise<void> {
+    setInstalling(true)
+    setError(null)
+    setMessage(null)
+
+    try {
+      const selected = await window.clawpilot.app.showOpenDialog({
+        title: 'Choose Skill Folder',
+        properties: ['openDirectory'],
+      })
+      if (!selected) return
+
+      try {
+        await getSkillsApi().install({ sourcePath: selected })
+        setMessage('Skill installed.')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.toLowerCase().includes('already exists')) {
+          const confirmed = window.confirm('Skill already exists. Overwrite with this version?')
+          if (!confirmed) return
+          await getSkillsApi().install({ sourcePath: selected, overwrite: true })
+          setMessage('Skill updated.')
+        } else {
+          throw err
+        }
+      }
+
+      await loadSkills()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setInstalling(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full p-6 gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -179,13 +215,22 @@ export function SkillsPage(): React.ReactElement {
             Review the skills available in OpenClaw, turn them on or off, and manage local installs.
           </p>
         </div>
-        <button
-          onClick={() => void loadSkills()}
-          disabled={refreshing || loading}
-          className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void handleInstall()}
+            disabled={installing}
+            className="rounded-xl border border-violet-500/40 bg-violet-600 px-4 py-2 text-sm text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {installing ? 'Installing...' : 'Install Skill'}
+          </button>
+          <button
+            onClick={() => void loadSkills()}
+            disabled={refreshing || loading}
+            className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {message && (

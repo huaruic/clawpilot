@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('clawpilot', {
     updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke('app:updateSettings', { patch }),
     getSystemLocale: (): Promise<string> => ipcRenderer.invoke('app:getSystemLocale'),
+    showOpenDialog: (params?: {
+      title?: string
+      defaultPath?: string
+      filters?: Array<{ name: string; extensions: string[] }>
+      properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory'>
+    }): Promise<string | null> => ipcRenderer.invoke('app:showOpenDialog', params ?? {}),
     chooseWorkspaceRoot: (): Promise<string | null> => ipcRenderer.invoke('app:chooseWorkspaceRoot'),
     setWorkspaceRoot: (workspaceRoot: string): Promise<RuntimeSnapshot> =>
       ipcRenderer.invoke('app:setWorkspaceRoot', { workspaceRoot }),
@@ -83,6 +89,8 @@ contextBridge.exposeInMainWorld('clawpilot', {
     list: (): Promise<unknown> => ipcRenderer.invoke('skills:list'),
     setEnabled: (params: { skillKey: string; enabled: boolean }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:setEnabled', params),
+    install: (params: { sourcePath: string; overwrite?: boolean }): Promise<{ ok: boolean; target: string }> =>
+      ipcRenderer.invoke('skills:install', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
   },

@@ -111,6 +111,12 @@ export interface ClawPilotAPI {
     getSettings: () => Promise<AppSettings>
     updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
     getSystemLocale: () => Promise<string>
+    showOpenDialog: (params?: {
+      title?: string
+      defaultPath?: string
+      filters?: Array<{ name: string; extensions: string[] }>
+      properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory'>
+    }) => Promise<string | null>
     chooseWorkspaceRoot: () => Promise<string | null>
     setWorkspaceRoot: (workspaceRoot: string) => Promise<RuntimeSnapshot>
     resetWorkspaceRoot: () => Promise<RuntimeSnapshot>
@@ -166,6 +172,7 @@ export interface ClawPilotAPI {
   skills: {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
+    install: (params: { sourcePath: string; overwrite?: boolean }) => Promise<{ ok: boolean; target: string }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
   }
   ollama: {

@@ -58,6 +58,29 @@ export function registerAppIpc({ processManager, state, refreshSetup, getMainWin
     return getSystemLocale()
   })
 
+  ipcMain.handle('app:showOpenDialog', async (_, raw) => {
+    const params = (raw as {
+      title?: unknown
+      defaultPath?: unknown
+      filters?: unknown
+      properties?: unknown
+    } | null) ?? {}
+    const result = await dialog.showOpenDialog(getMainWindow() ?? undefined, {
+      title: typeof params.title === 'string' ? params.title : 'Open',
+      defaultPath: typeof params.defaultPath === 'string' ? params.defaultPath : undefined,
+      filters: Array.isArray(params.filters) ? params.filters as Array<{ name: string; extensions: string[] }> : undefined,
+      properties: Array.isArray(params.properties)
+        ? params.properties as Array<'openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory'>
+        : ['openDirectory'],
+    })
+
+    if (result.canceled) {
+      return null
+    }
+
+    return result.filePaths[0] ?? null
+  })
+
   ipcMain.handle('app:chooseWorkspaceRoot', async () => {
     const result = await dialog.showOpenDialog(getMainWindow() ?? undefined, {
       title: 'Choose Workspace Folder',

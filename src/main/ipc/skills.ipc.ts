@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import JSON5 from 'json5'
-import { DeleteSkillSchema, SetSkillEnabledSchema } from './schemas/skills.schema'
+import { DeleteSkillSchema, InstallSkillSchema, SetSkillEnabledSchema } from './schemas/skills.schema'
 import { getConfigPath, readWorkspaceRoot, removeSkillEntryConfig, writeSkillEnabled } from '../services/OpenClawConfigWriter'
 import { getBundledOpenClawSkillsDir, getOpenClawStateDir } from '../services/RuntimeLocator'
 
@@ -81,6 +81,12 @@ export function registerSkillsIpc(): void {
     await removeSkillEntryConfig(skill.skillKey)
 
     return { ok: true }
+  })
+
+  ipcMain.handle('skills:install', async (_, raw) => {
+    const { sourcePath, overwrite } = InstallSkillSchema.parse(raw)
+    const target = await installSkill(sourcePath, Boolean(overwrite))
+    return { ok: true, target }
   })
 }
 
@@ -169,6 +175,36 @@ async function scanSkillRoot(
   }))
 
   return results
+}
+
+async function installSkill(sourcePath: string, overwrite: boolean): Promise<string> {
+  const resolved = path.resolve(sourcePath)
+  const stat = await fs.stat(resolved)
+  if (!stat.isDirectory()) {
+    throw new Error('Selected skill must be a directory')
+  }
+
+  const frontmatter = await readFrontmatter(path.join(resolved, 'SKILL.md'), path.basename(resolved))
+  const dirName = sanitizeFolderName(frontmatter.skillKey || path.basename(resolved))
+  const targetRoot = path.join(getOpenClawStateDir(), 'skills')
+  const targetPath = path.join(targetRoot, dirName)
+
+  try {
+    await fs.access(targetPath)
+    if (!overwrite) {
+      throw new Error('Skill already exists')
+    }
+    await fs.rm(targetPath, { recursive: true, force: true })
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && !overwrite) {
+      throw err
+    }
+  }
+
+  await fs.mkdir(targetRoot, { recursive: true })
+  await copyDir(resolved, targetPath)
+  return targetPath
 }
 
 async function discoverSkillDirs(rootDir: string): Promise<string[]> {
@@ -266,4 +302,23 @@ async function pathExists(target: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function copyDir(src: string, dest: string): Promise<void> {
+  const stat = await fs.stat(src)
+  if (stat.isDirectory()) {
+    await fs.mkdir(dest, { recursive: true })
+    const entries = await fs.readdir(src)
+    for (const entry of entries) {
+      await copyDir(path.join(src, entry), path.join(dest, entry))
+    }
+    return
+  }
+  await fs.copyFile(src, dest)
+}
+
+function sanitizeFolderName(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return 'skill'
+  return trimmed.replace(/[^\w.-]+/g, '-')
 }
