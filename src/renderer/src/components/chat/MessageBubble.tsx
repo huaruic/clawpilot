@@ -12,11 +12,28 @@ interface Props {
 
 export function MessageBubble({ message }: Props): React.ReactElement {
   const isUser = message.role === 'user'
+  const isSystem = message.role === 'system'
   const isStreaming = message.state === 'streaming'
-  const isError = message.state === 'error'
+  const isError = message.state === 'error' || message.state === 'aborted'
+  const isSending = message.state === 'sending'
+  const isTool = message.kind === 'tool_call' || message.kind === 'tool_result'
+
+  if (isSystem || isTool) {
+    return (
+      <div className="flex justify-center">
+        <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-xs border ${
+          isTool
+            ? 'bg-zinc-900 text-zinc-300 border-zinc-700'
+            : 'bg-zinc-950 text-zinc-400 border-zinc-800'
+        }`}>
+          <pre className="whitespace-pre-wrap font-sans break-words m-0">{message.content}</pre>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} ${isSending ? 'opacity-70' : ''}`}>
       {!isUser && (
         <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-xs text-white shrink-0 mt-1">
           AI
@@ -55,7 +72,6 @@ export function MessageBubble({ message }: Props): React.ReactElement {
 
                   return (
                     <SyntaxHighlighter
-                      // Inline style is provided by the library theme; wrapper handles spacing.
                       style={oneDark}
                       language={match[1]}
                       PreTag="div"
