@@ -15,14 +15,14 @@ export function StatusPage(): React.ReactElement {
   const { snapshot } = useRuntimeStore()
   const { t } = useI18n()
   const [loading, setLoading] = useState<'start' | 'stop' | 'restart' | null>(null)
-  const [workspaceInput, setWorkspaceInput] = useState('')
-  const [workspaceBusy, setWorkspaceBusy] = useState<'browse' | 'save' | 'reset' | null>(null)
+  const [configDir, setConfigDir] = useState<string>('')
+  const [configCopied, setConfigCopied] = useState(false)
   const styles = STATUS_STYLES[snapshot.status]
   const setupLabel = describeSetup(snapshot.setup.phase, t)
 
   useEffect(() => {
-    setWorkspaceInput(snapshot.setup.workspaceRoot)
-  }, [snapshot.setup.workspaceRoot])
+    window.clawpilot.app.getConfigDir().then(setConfigDir).catch(() => undefined)
+  }, [])
 
   async function handleAction(action: 'start' | 'stop' | 'restart'): Promise<void> {
     setLoading(action)
@@ -33,34 +33,19 @@ export function StatusPage(): React.ReactElement {
     }
   }
 
-  async function handleBrowseWorkspace(): Promise<void> {
-    setWorkspaceBusy('browse')
+  async function handleCopyConfigPath(): Promise<void> {
+    if (!configDir) return
     try {
-      const selected = await window.clawpilot.app.chooseWorkspaceRoot()
-      if (selected) {
-        setWorkspaceInput(selected)
-      }
-    } finally {
-      setWorkspaceBusy(null)
+      await navigator.clipboard.writeText(configDir)
+      setConfigCopied(true)
+      window.setTimeout(() => setConfigCopied(false), 1500)
+    } catch {
+      setConfigCopied(false)
     }
   }
 
-  async function handleSaveWorkspace(): Promise<void> {
-    setWorkspaceBusy('save')
-    try {
-      await window.clawpilot.app.setWorkspaceRoot(workspaceInput)
-    } finally {
-      setWorkspaceBusy(null)
-    }
-  }
-
-  async function handleResetWorkspace(): Promise<void> {
-    setWorkspaceBusy('reset')
-    try {
-      await window.clawpilot.app.resetWorkspaceRoot()
-    } finally {
-      setWorkspaceBusy(null)
-    }
+  async function handleOpenConfigDir(): Promise<void> {
+    await window.clawpilot.app.openConfigDir()
   }
 
   const isRunning = snapshot.status === 'RUNNING'
@@ -149,45 +134,43 @@ export function StatusPage(): React.ReactElement {
       <div className="rounded-xl border border-zinc-800 p-5 space-y-4">
         <div>
           <h2 className="text-sm font-medium text-zinc-200">{t('app.status.workspace')}</h2>
-          <p className="text-sm text-zinc-500 mt-1">
-            {t('app.status.workspaceHelp')}
-          </p>
+          <p className="text-sm text-zinc-500 mt-1">{t('app.status.workspaceHelp')}</p>
         </div>
 
         <div className="space-y-2">
           <label className="block text-xs text-zinc-500">{t('app.status.activeWorkspaceRoot')}</label>
-          <input
-            value={workspaceInput}
-            onChange={(e) => setWorkspaceInput(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none transition-colors"
-            placeholder={t('app.status.workspacePlaceholder')}
-          />
+          <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 font-mono break-all">
+            {snapshot.setup.workspaceRoot}
+          </div>
           <p className="text-xs text-zinc-600">
             {t('app.status.currentSetupPhase')} <span className="font-mono">{setupLabel}</span>
           </p>
         </div>
+      </div>
 
+      <div className="rounded-xl border border-zinc-800 p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-medium text-zinc-200">{t('app.status.configDirTitle')}</h2>
+          <p className="text-sm text-zinc-500 mt-1">{t('app.status.configDirHelp')}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="text-xs text-zinc-500">{t('app.status.configDirPath')}</div>
+          <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm text-zinc-100 font-mono break-all">
+            {configDir || '—'}
+          </div>
+        </div>
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => void handleBrowseWorkspace()}
-            disabled={workspaceBusy !== null}
-            className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-100 rounded-lg transition-colors"
+            onClick={() => void handleCopyConfigPath()}
+            className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg transition-colors"
           >
-            {workspaceBusy === 'browse' ? t('app.status.browsing') : t('app.status.browse')}
+            {configCopied ? t('app.status.copied') : t('app.status.copyPath')}
           </button>
           <button
-            onClick={() => void handleSaveWorkspace()}
-            disabled={!workspaceInput.trim() || workspaceBusy !== null || workspaceInput.trim() === snapshot.setup.workspaceRoot}
-            className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+            onClick={() => void handleOpenConfigDir()}
+            className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg transition-colors"
           >
-            {workspaceBusy === 'save' ? t('app.status.applying') : t('app.status.applyWorkspace')}
-          </button>
-          <button
-            onClick={() => void handleResetWorkspace()}
-            disabled={workspaceBusy !== null}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-40 transition-colors"
-          >
-            {workspaceBusy === 'reset' ? t('app.status.resetting') : t('app.status.useDefaultWorkspace')}
+            {t('app.status.openFolder')}
           </button>
         </div>
       </div>

@@ -41,19 +41,11 @@ export interface FeishuConfig {
 }
 
 export async function readWorkspaceRoot(): Promise<string> {
-  const existing = await readExistingConfig()
-  const configured = (((existing.agents as Record<string, unknown> | undefined)
-    ?.defaults as Record<string, unknown> | undefined)
-    ?.workspace as string | undefined)?.trim()
-
-  return configured || getDefaultOpenClawWorkspaceRoot()
+  return getDefaultOpenClawWorkspaceRoot()
 }
 
 export async function writeWorkspaceRoot(workspaceRoot: string): Promise<void> {
-  const trimmed = workspaceRoot.trim()
-  if (!trimmed) {
-    throw new Error('Workspace path is required')
-  }
+  const trimmed = getDefaultOpenClawWorkspaceRoot()
 
   const configPath = getConfigPath()
   await fs.mkdir(path.dirname(configPath), { recursive: true })
@@ -97,9 +89,7 @@ export async function ensureOpenClawBaseConfig(): Promise<void> {
   const stateDir = getOpenClawStateDir()
   const agents = (existing.agents as Record<string, unknown>) ?? {}
   const defaults = (agents.defaults as Record<string, unknown>) ?? {}
-  const workspaceRoot = (typeof defaults.workspace === 'string' && defaults.workspace.trim())
-    ? defaults.workspace.trim()
-    : getDefaultOpenClawWorkspaceRoot()
+  const workspaceRoot = getDefaultOpenClawWorkspaceRoot()
 
   await fs.mkdir(workspaceRoot, { recursive: true })
 

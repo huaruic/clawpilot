@@ -66,13 +66,13 @@ Goal: ship multi-agent + multi-channel + diagnostics/logs + stronger chat state.
 - H2: Aggregate by model + time window ✅
 
 ### Epic I: Workspace / Migration
-- I1: Remove manual workspace browsing/setting
-- I2: Fixed workspace naming (main = workspace-default)
-- I3: Migration from ~/.openclaw (config + skills only if large)
+- I1: Remove manual workspace browsing/setting ✅
+- I2: Fixed workspace naming (main = workspace-default) ✅
+- I3: Migration from ~/.openclaw (config + skills only if large) ✅
 
 ### Epic J: UX / Config Entry Points
-- J1: Config directory display + copy + open folder
-- J2: Add same entry to Status + Settings
+- J1: Config directory display + copy + open folder ✅
+- J2: Add same entry to Status + Settings ✅
 
 ---
 

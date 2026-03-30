@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { ipcMain, BrowserWindow, dialog, shell } from 'electron'
 import type { OpenClawProcessManager } from '../services/OpenClawProcessManager'
 import type { RuntimeState } from '../state/RuntimeState'
 import {
@@ -11,6 +11,8 @@ import {
   readAppSettings,
   updateAppSettings,
 } from '../services/AppSettingsStore'
+import { getOpenClawStateDir } from '../services/RuntimeLocator'
+import { migrateLegacyOpenClaw } from '../services/LegacyMigration'
 
 interface Deps {
   processManager: OpenClawProcessManager
@@ -56,6 +58,28 @@ export function registerAppIpc({ processManager, state, refreshSetup, getMainWin
 
   ipcMain.handle('app:getSystemLocale', () => {
     return getSystemLocale()
+  })
+
+  ipcMain.handle('app:getConfigDir', () => {
+    return getOpenClawStateDir()
+  })
+
+  ipcMain.handle('app:openConfigDir', async () => {
+    const dir = getOpenClawStateDir()
+    await shell.openPath(dir)
+    return { ok: true }
+  })
+
+  ipcMain.handle('app:migrateLegacyOpenClaw', async () => {
+    const result = await migrateLegacyOpenClaw()
+    await refreshSetup()
+
+    if (result.ok && state.snapshot.status === 'RUNNING') {
+      await processManager.restart()
+      await refreshSetup()
+    }
+
+    return result
   })
 
   ipcMain.handle('app:showSaveDialog', async (_, raw) => {

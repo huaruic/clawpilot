@@ -208,6 +208,9 @@ export interface ClawPilotAPI {
     getSettings: () => Promise<AppSettings>
     updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
     getSystemLocale: () => Promise<string>
+    getConfigDir: () => Promise<string>
+    openConfigDir: () => Promise<{ ok: boolean }>
+    migrateLegacyOpenClaw: () => Promise<{ ok: boolean; message: string; copiedConfig: boolean; copiedSkills: number }>
     showSaveDialog: (params?: {
       title?: string
       defaultPath?: string
