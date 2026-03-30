@@ -10,8 +10,10 @@ import { registerChannelsIpc } from './channels.ipc'
 import { registerSkillsIpc } from './skills.ipc'
 import { registerDiagnosticsIpc } from './diagnostics.ipc'
 import { registerLogsIpc } from './logs.ipc'
+import { registerUsageIpc } from './usage.ipc'
 import { OpenClawDiagnostics } from '../services/OpenClawDiagnostics'
 import { LogsService } from '../services/LogsService'
+import { UsageService } from '../services/UsageService'
 
 interface Deps {
   processManager: OpenClawProcessManager
@@ -34,4 +36,8 @@ export function registerAllIpc(deps: Deps): void {
   const logsService = new LogsService()
   registerDiagnosticsIpc(diagnostics)
   registerLogsIpc(logsService)
+
+  // Usage / Token Cost
+  const usageService = new UsageService()
+  registerUsageIpc(usageService)
 }
