@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { ipcMain, BrowserWindow, dialog, shell } from 'electron'
 import type { OpenClawProcessManager } from '../services/OpenClawProcessManager'
 import type { RuntimeState } from '../state/RuntimeState'
 import {
@@ -117,6 +117,20 @@ export function registerAppIpc({ processManager, state, refreshSetup, getMainWin
 
     await refreshSetup()
     return state.snapshot
+  })
+
+  ipcMain.handle('app:openDirectory', async (_, raw) => {
+    const path = String((raw as { path?: unknown } | null)?.path ?? '').trim()
+    if (!path) {
+      return { ok: false, error: 'Path is required' }
+    }
+
+    const result = await shell.openPath(path)
+    if (result) {
+      return { ok: false, error: result }
+    }
+
+    return { ok: true }
   })
 
   // Push status changes to renderer

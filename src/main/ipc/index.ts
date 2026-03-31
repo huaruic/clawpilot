@@ -29,5 +29,5 @@ export function registerAllIpc(deps: Deps): void {
 
   // Diagnostics and Logs
   const diagnostics = new OpenClawDiagnostics()
-  registerDiagnosticsIpc(diagnostics)
+  registerDiagnosticsIpc(diagnostics, () => deps.state.snapshot.status)
 }

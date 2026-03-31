@@ -1,6 +1,7 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { OpenClawDiagnostics, type DiagnosticReport, type DiagnosticIssue } from '../services/OpenClawDiagnostics'
 import { z } from 'zod'
+import type { RuntimeStatus } from '../state/RuntimeState'
 
 // Schemas
 const FixIssueSchema = z.object({
@@ -17,12 +18,28 @@ const ExportBundleSchema = z.object({
   outputPath: z.string(),
 })
 
-export function registerDiagnosticsIpc(diagnostics: OpenClawDiagnostics): void {
+export function registerDiagnosticsIpc(
+  diagnostics: OpenClawDiagnostics,
+  getRuntimeStatus: () => RuntimeStatus,
+): void {
   /**
    * 运行完整诊断
    */
   ipcMain.handle('diagnostics:run', async (_event: IpcMainInvokeEvent): Promise<DiagnosticReport> => {
-    return await diagnostics.runDiagnostics()
+    const report = await diagnostics.runDiagnostics()
+    if (getRuntimeStatus() === 'STOPPED') {
+      if (report.overallStatus === 'healthy') {
+        report.overallStatus = 'warning'
+      }
+      report.issues.unshift({
+        category: 'runtime',
+        severity: 'warning',
+        title: '网关未启动',
+        description: '当前网关处于停止状态，请先启动后再进行完整诊断。',
+        fixable: false,
+      })
+    }
+    return report
   })
 
   /**

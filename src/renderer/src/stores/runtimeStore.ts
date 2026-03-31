@@ -33,6 +33,7 @@ export const useRuntimeStore = create<RuntimeStore>((set) => {
         phase: 'gateway_setup',
         blockingReason: 'missing_gateway_config',
       },
+      healthStatus: 'degraded',
     },
     setSnapshot: (snapshot) => set({ snapshot }),
   }

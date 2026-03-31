@@ -6,7 +6,6 @@ import { ChannelsPage } from './pages/ChannelsPage'
 import { ProvidersPage } from './pages/ProvidersPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { MemoryPage } from './pages/MemoryPage'
-import { DiagnosticsPage } from './pages/DiagnosticsPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 function PageContent({ page }: { page: Page }): React.ReactElement {
@@ -17,7 +16,6 @@ function PageContent({ page }: { page: Page }): React.ReactElement {
     case 'providers': return <ProvidersPage />
     case 'skills': return <SkillsPage />
     case 'memory': return <MemoryPage />
-    case 'diagnostics': return <DiagnosticsPage />
     case 'settings': return <SettingsPage />
   }
 }
