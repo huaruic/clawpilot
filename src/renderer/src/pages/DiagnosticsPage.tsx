@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { DiagnosticIssue, DiagnosticReport } from '../api/ipc'
 import { useI18n } from '../i18n/I18nProvider'
 
@@ -20,7 +20,15 @@ const SEVERITY_STYLE: Record<DiagnosticIssue['severity'], string> = {
 }
 
 export function DiagnosticsPage(): React.ReactElement {
-  const { t } = useI18n()
+  return (
+    <div className="h-full overflow-y-auto p-8">
+      <DiagnosticsPanel embedded={false} />
+    </div>
+  )
+}
+
+export function DiagnosticsPanel({ embedded }: { embedded: boolean }): React.ReactElement {
+  const { t, resolvedLanguage } = useI18n()
   const [report, setReport] = useState<DiagnosticReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -42,10 +50,6 @@ export function DiagnosticsPage(): React.ReactElement {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    void runDiagnostics()
-  }, [])
 
   const handleFix = async (issue: DiagnosticIssue): Promise<void> => {
     setFixingIssue(issue.title)
@@ -110,18 +114,31 @@ export function DiagnosticsPage(): React.ReactElement {
       : report?.overallStatus === 'warning'
         ? 'text-warning border-warning/30 bg-warning/10'
         : 'text-success border-success/30 bg-success/10'
+  const locale = resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en-US'
 
   return (
-    <div className="h-full overflow-y-auto p-8">
-      <section className="cp-card p-6 space-y-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t('app.diagnostics.title')}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t('app.diagnostics.subtitle')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+    <section className={embedded ? 'space-y-6' : 'cp-card p-6 space-y-6'}>
+        {!embedded && (
+          <header className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight">{t('app.diagnostics.title')}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t('app.diagnostics.subtitle')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="cp-btn cp-btn-muted" onClick={() => void runDiagnostics()} disabled={loading}>
+                {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
+              </button>
+              <button className="cp-btn cp-btn-primary" onClick={() => void handleExport()} disabled={!report || exporting}>
+                {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
+              </button>
+            </div>
+          </header>
+        )}
+
+        {embedded && (
+          <div className="flex items-center justify-end gap-2">
             <button className="cp-btn cp-btn-muted" onClick={() => void runDiagnostics()} disabled={loading}>
               {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
             </button>
@@ -129,7 +146,7 @@ export function DiagnosticsPage(): React.ReactElement {
               {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
             </button>
           </div>
-        </header>
+        )}
 
         {feedback && (
           <div
@@ -151,11 +168,11 @@ export function DiagnosticsPage(): React.ReactElement {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-wide">{t('app.diagnostics.overallHealth')}</p>
-                  <p className="mt-1 text-lg font-semibold">{report.overallStatus.toUpperCase()}</p>
+                  <p className="mt-1 text-lg font-semibold">{toStateLabel(report.overallStatus, t)}</p>
                 </div>
                 <div className="text-right text-sm">
                   <p>{report.issues.length} {t('app.diagnostics.issuesLabel')}</p>
-                  <p className="text-muted-foreground">{new Date(report.timestamp).toLocaleString()}</p>
+                  <p className="text-muted-foreground">{new Date(report.timestamp).toLocaleString(locale)}</p>
                 </div>
               </div>
             </div>
@@ -167,7 +184,7 @@ export function DiagnosticsPage(): React.ReactElement {
                     <p className="text-sm font-medium">{t(CATEGORY_KEY[item.category])}</p>
                     <span className="cp-badge">{item.count}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.state === 'healthy' ? t('app.diagnostics.healthy') : item.state.toUpperCase()}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{toStateLabel(item.state, t)}</p>
                 </div>
               ))}
             </div>
@@ -207,7 +224,7 @@ export function DiagnosticsPage(): React.ReactElement {
                         <div className="flex items-center gap-2">
                           <span className="cp-badge">{t(CATEGORY_KEY[issue.category])}</span>
                           <span className={`rounded-full border px-2 py-0.5 text-xs ${SEVERITY_STYLE[issue.severity]}`}>
-                            {issue.severity.toUpperCase()}
+                            {toStateLabel(issue.severity, t)}
                           </span>
                         </div>
                         <h3 className="text-sm font-semibold">{issue.title}</h3>
@@ -253,6 +270,15 @@ export function DiagnosticsPage(): React.ReactElement {
           </>
         )}
       </section>
-    </div>
   )
+}
+
+function toStateLabel(
+  state: 'healthy' | 'warning' | 'error' | 'info',
+  t: (key: string) => string,
+): string {
+  if (state === 'healthy') return t('app.diagnostics.healthy')
+  if (state === 'warning') return t('app.diagnostics.filterWarning')
+  if (state === 'error') return t('app.diagnostics.filterError')
+  return t('app.diagnostics.filterInfo')
 }

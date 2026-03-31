@@ -1,4 +1,5 @@
 export type RuntimeStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'UPDATING'
+export type RuntimeHealth = 'ok' | 'degraded' | 'error'
 export type SetupPhase = 'gateway_setup' | 'model_setup' | 'bootstrap' | 'ready'
 export type AppLanguage = 'system' | 'zh-CN' | 'en'
 export type AppTheme = 'system' | 'light' | 'dark'
@@ -26,6 +27,10 @@ export interface RuntimeSnapshot {
   port: number
   startedAt?: number
   setup: OpenClawSetup
+  lastFailureReason?: string
+  lastFailureAt?: number
+  lastHealthAt?: number
+  healthStatus?: RuntimeHealth
 }
 
 export interface ChatEvent {
@@ -149,6 +154,7 @@ export interface ClawPilotAPI {
     chooseWorkspaceRoot: () => Promise<string | null>
     setWorkspaceRoot: (workspaceRoot: string) => Promise<RuntimeSnapshot>
     resetWorkspaceRoot: () => Promise<RuntimeSnapshot>
+    openDirectory: (path: string) => Promise<{ ok: boolean; error?: string }>
     onStatusChange: (cb: (snap: RuntimeSnapshot) => void) => () => void
   }
   chat: {

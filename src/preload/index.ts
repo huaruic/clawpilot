@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('app:setWorkspaceRoot', { workspaceRoot }),
     resetWorkspaceRoot: (): Promise<RuntimeSnapshot> =>
       ipcRenderer.invoke('app:resetWorkspaceRoot'),
+    openDirectory: (path: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('app:openDirectory', { path }),
     onStatusChange: (cb: (snap: RuntimeSnapshot) => void): (() => void) => {
       const handler = (_: Electron.IpcRendererEvent, snap: RuntimeSnapshot): void => cb(snap)
       ipcRenderer.on('app:status-changed', handler)

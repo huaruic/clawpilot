@@ -1,5 +1,4 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import fs from 'node:fs'
 import { RuntimeState } from '../state/RuntimeState'
 import {
   getBundledNodePath,
@@ -10,15 +9,29 @@ import { ensureOpenClawBaseConfig } from './OpenClawConfigWriter'
 import { mainLogger } from '../utils/logger'
 
 const GATEWAY_PORT = 18790
-const HEALTH_POLL_INTERVAL_MS = 500
-const HEALTH_POLL_MAX_ATTEMPTS = 40 // 20 seconds total
-const STDERR_BUFFER_LINES = 20
+const STARTUP_HEALTH_INTERVAL_MS = 500
+const STARTUP_HEALTH_MAX_ATTEMPTS = 40 // 20 seconds total
+const HEALTH_MONITOR_INTERVAL_MS = 5000
+const HEALTH_FAILURE_THRESHOLD = 3
+const STDERR_BUFFER_LINES = 30
+
+const RESTART_WINDOW_MS = 2 * 60 * 1000
+const RESTART_MAX_ATTEMPTS = 3
+const RESTART_DEBOUNCE_MS = 3000
+const RESTART_BACKOFF_BASE_MS = 1500
 
 export class OpenClawProcessManager {
   private child: ChildProcess | null = null
   private readonly state: RuntimeState
   private stderrBuffer: string[] = []
   private exitInfo: { code: number | null; signal: string | null } | null = null
+  private healthTimer: NodeJS.Timeout | null = null
+  private healthFailures = 0
+  private restartAttempts = 0
+  private restartWindowStart = 0
+  private restartInFlight = false
+  private stopRequested = false
+  private lastRestartAt = 0
 
   constructor(state: RuntimeState) {
     this.state = state
@@ -34,6 +47,7 @@ export class OpenClawProcessManager {
       return
     }
 
+    this.stopRequested = false
     this.state.transition('STARTING')
 
     try {
@@ -57,31 +71,61 @@ export class OpenClawProcessManager {
         mainLogger.info('[openclaw]', chunk.toString().trim())
       })
       this.child.stderr?.on('data', (chunk: Buffer) => {
-        mainLogger.warn('[openclaw]', chunk.toString().trim())
+        const text = chunk.toString().trim()
+        if (text) {
+          this.appendStderr(text)
+          mainLogger.warn('[openclaw]', text)
+        }
       })
 
       this.child.on('error', (err) => {
+        const reason = classifyFailure(err.message, this.stderrBuffer)
         mainLogger.error('[ProcessManager] spawn error:', err.message)
         this.state.transition('ERROR', { error: err.message })
+        this.state.setFailure(reason, err.message)
         this.child = null
       })
 
       this.child.on('exit', (code, signal) => {
         mainLogger.info(`[ProcessManager] exited code=${code} signal=${signal}`)
+        this.exitInfo = { code, signal }
+        this.stopHealthMonitor()
         const wasRunning = this.state.snapshot.status === 'RUNNING'
-        this.state.transition(
-          wasRunning && code !== 0 ? 'ERROR' : 'STOPPED',
-          code !== 0 ? { error: `Exit code ${code}` } : {}
-        )
+
+        if (this.stopRequested) {
+          this.state.transition('STOPPED')
+          this.child = null
+          return
+        }
+
+        if (wasRunning && code !== 0) {
+          const reason = classifyFailure(`Exit code ${code}`, this.stderrBuffer)
+          this.state.transition('ERROR', { error: `Exit code ${code}` })
+          this.state.setFailure(reason, `Exit code ${code}`)
+          this.child = null
+          this.scheduleRestart(reason)
+          return
+        }
+
+        this.state.transition(code !== 0 ? 'ERROR' : 'STOPPED', code !== 0 ? { error: `Exit code ${code}` } : {})
+        if (code !== 0) {
+          const reason = classifyFailure(`Exit code ${code}`, this.stderrBuffer)
+          this.state.setFailure(reason, `Exit code ${code}`)
+          this.scheduleRestart(reason)
+        }
         this.child = null
       })
 
       await this.waitUntilReady()
+      this.startHealthMonitor()
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      const reason = classifyFailure(message, this.stderrBuffer)
       mainLogger.error('[ProcessManager] Failed to start:', message)
       this.state.transition('ERROR', { error: message })
+      this.state.setFailure(reason, message)
       this.child = null
+      this.scheduleRestart(reason)
     }
   }
 
@@ -90,6 +134,9 @@ export class OpenClawProcessManager {
       this.state.transition('STOPPED')
       return
     }
+
+    this.stopRequested = true
+    this.stopHealthMonitor()
 
     mainLogger.info('[ProcessManager] Stopping...')
     this.child.kill('SIGTERM')
@@ -114,9 +161,42 @@ export class OpenClawProcessManager {
   }
 
   async restart(): Promise<void> {
+    const now = Date.now()
+    if (now - this.lastRestartAt < RESTART_DEBOUNCE_MS) {
+      mainLogger.warn('[ProcessManager] Restart suppressed due to debounce window')
+      return
+    }
+
+    this.lastRestartAt = now
     mainLogger.info('[ProcessManager] Restarting...')
     await this.stop()
     await this.start()
+  }
+
+  private scheduleRestart(reason: string): void {
+    if (this.restartInFlight) return
+
+    const now = Date.now()
+    if (now - this.restartWindowStart > RESTART_WINDOW_MS) {
+      this.restartWindowStart = now
+      this.restartAttempts = 0
+    }
+
+    if (this.restartAttempts >= RESTART_MAX_ATTEMPTS) {
+      mainLogger.error('[ProcessManager] Restart suppressed: too many failures')
+      this.state.setFailure('restart_suppressed', `Restart suppressed after ${this.restartAttempts} failures`) 
+      return
+    }
+
+    this.restartAttempts += 1
+    this.restartInFlight = true
+    const delay = RESTART_BACKOFF_BASE_MS * this.restartAttempts
+
+    mainLogger.warn(`[ProcessManager] Scheduling restart in ${delay}ms (${reason})`)
+    setTimeout(() => {
+      this.restartInFlight = false
+      void this.restart()
+    }, delay)
   }
 
   private buildSpawnArgs(nodePath: string, entryPath: string): string[] {
@@ -137,7 +217,7 @@ export class OpenClawProcessManager {
   private async waitUntilReady(): Promise<void> {
     const url = `http://127.0.0.1:${GATEWAY_PORT}/health`
 
-    for (let i = 0; i < HEALTH_POLL_MAX_ATTEMPTS; i++) {
+    for (let i = 0; i < STARTUP_HEALTH_MAX_ATTEMPTS; i++) {
       if (!this.child) {
         throw new Error('OpenClaw process exited before becoming ready')
       }
@@ -151,19 +231,85 @@ export class OpenClawProcessManager {
             startedAt: Date.now(),
             port: GATEWAY_PORT,
           })
+          this.state.setHealth('ok', Date.now())
           return
         }
       } catch {
         // Not ready yet
       }
 
-      await sleep(HEALTH_POLL_INTERVAL_MS)
+      await sleep(STARTUP_HEALTH_INTERVAL_MS)
     }
 
-    throw new Error(`Gateway did not start within ${(HEALTH_POLL_INTERVAL_MS * HEALTH_POLL_MAX_ATTEMPTS) / 1000}s`)
+    throw new Error(`Gateway did not start within ${(STARTUP_HEALTH_INTERVAL_MS * STARTUP_HEALTH_MAX_ATTEMPTS) / 1000}s`)
+  }
+
+  private startHealthMonitor(): void {
+    this.stopHealthMonitor()
+    this.healthFailures = 0
+
+    this.healthTimer = setInterval(async () => {
+      if (!this.child) return
+      const url = `http://127.0.0.1:${GATEWAY_PORT}/health`
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(800) })
+        if (res.ok) {
+          this.healthFailures = 0
+          this.state.setHealth('ok', Date.now())
+          return
+        }
+      } catch {
+        // ignore
+      }
+
+      this.healthFailures += 1
+      this.state.setHealth('degraded', Date.now())
+
+      if (this.healthFailures >= HEALTH_FAILURE_THRESHOLD) {
+        mainLogger.warn('[ProcessManager] Health check failed, triggering restart')
+        this.state.setFailure('health_check_failed', 'Gateway health check failed')
+        this.scheduleRestart('health_check_failed')
+        this.healthFailures = 0
+      }
+    }, HEALTH_MONITOR_INTERVAL_MS)
+  }
+
+  private stopHealthMonitor(): void {
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer)
+      this.healthTimer = null
+    }
+  }
+
+  private appendStderr(text: string): void {
+    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
+    this.stderrBuffer.push(...lines)
+    if (this.stderrBuffer.length > STDERR_BUFFER_LINES) {
+      this.stderrBuffer = this.stderrBuffer.slice(-STDERR_BUFFER_LINES)
+    }
   }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function classifyFailure(message: string, stderr: string[]): string {
+  const combined = [message, ...stderr].join(' ').toLowerCase()
+  if (combined.includes('address already in use') || combined.includes('port') && combined.includes('in use')) {
+    return 'port_in_use'
+  }
+  if (combined.includes('already listening') || combined.includes('gateway instance')) {
+    return 'gateway_already_running'
+  }
+  if (combined.includes('gateway did not start') || combined.includes('did not start within')) {
+    return 'gateway_timeout'
+  }
+  if (combined.includes('openclaw process exited before becoming ready')) {
+    return 'early_exit'
+  }
+  if (combined.includes('missing bundled node runtime') || combined.includes('missing vendored openclaw')) {
+    return 'missing_runtime'
+  }
+  return 'unknown'
 }

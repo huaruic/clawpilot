@@ -2,6 +2,7 @@ import { runOpenClawCli } from './OpenClawCliRunner'
 import { getOpenClawStateDir } from './RuntimeLocator'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import JSON5 from 'json5'
 
 export interface DiagnosticIssue {
   category: 'runtime' | 'config' | 'provider' | 'channel' | 'skill' | 'workspace'
@@ -241,7 +242,7 @@ export class OpenClawDiagnostics {
 
     try {
       const content = await fs.readFile(configPath, 'utf-8')
-      JSON.parse(content) // 验证 JSON 格式
+      JSON5.parse(content) // 验证 JSON5/JSON 格式
       return null
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -259,7 +260,7 @@ export class OpenClawDiagnostics {
           category: 'config',
           severity: 'error',
           title: '配置文件格式错误',
-          description: 'openclaw.json 不是有效的 JSON',
+          description: 'openclaw.json 不是有效的 JSON/JSON5',
           details: error instanceof Error ? error.message : String(error),
           fixable: false,
         }

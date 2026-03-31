@@ -1,6 +1,7 @@
 import type { OpenClawSetup } from '../services/OpenClawConfigWriter'
 
 export type RuntimeStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'UPDATING'
+export type RuntimeHealth = 'ok' | 'degraded' | 'error'
 
 export interface RuntimeSnapshot {
   status: RuntimeStatus
@@ -9,6 +10,10 @@ export interface RuntimeSnapshot {
   port: number
   startedAt?: number
   setup: OpenClawSetup
+  lastFailureReason?: string
+  lastFailureAt?: number
+  lastHealthAt?: number
+  healthStatus?: RuntimeHealth
 }
 
 type ChangeHandler = (snap: RuntimeSnapshot) => void
@@ -27,6 +32,7 @@ export class RuntimeState {
       phase: 'gateway_setup',
       blockingReason: 'missing_gateway_config',
     },
+    healthStatus: 'degraded',
   }
 
   private handlers = new Set<ChangeHandler>()
@@ -50,6 +56,25 @@ export class RuntimeState {
     this._snapshot = {
       ...this._snapshot,
       setup,
+    }
+    this.emit()
+  }
+
+  setHealth(status: RuntimeHealth, lastHealthAt: number): void {
+    this._snapshot = {
+      ...this._snapshot,
+      healthStatus: status,
+      lastHealthAt,
+    }
+    this.emit()
+  }
+
+  setFailure(reason: string, error: string): void {
+    this._snapshot = {
+      ...this._snapshot,
+      error,
+      lastFailureReason: reason,
+      lastFailureAt: Date.now(),
     }
     this.emit()
   }

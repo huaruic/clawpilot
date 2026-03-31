@@ -381,13 +381,16 @@ export async function writeDefaultModel(primary: string): Promise<void> {
   const agents = (existing.agents as Record<string, unknown>) ?? {}
   const defaults = (agents.defaults as Record<string, unknown>) ?? {}
   const model = (defaults.model as Record<string, unknown>) ?? {}
+  const meta = await loadProviderMeta()
+  const providers = meta.map((entry) => ({ ...entry, apiKey: '' }))
+  const resolved = resolveDefaultModel(providers, primary)
   const updated = {
     ...existing,
     agents: {
       ...agents,
       defaults: {
         ...defaults,
-        model: { ...model, primary },
+        model: { ...model, primary: resolved },
       },
     },
   }

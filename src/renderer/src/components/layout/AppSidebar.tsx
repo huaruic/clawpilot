@@ -8,7 +8,6 @@ import {
   IconChat,
   IconKey,
   IconMemory,
-  IconPulse,
   IconSettings,
   IconStatus,
 } from '../icons'
@@ -20,7 +19,6 @@ export type Page =
   | 'providers'
   | 'skills'
   | 'memory'
-  | 'diagnostics'
   | 'settings'
 
 interface Props {
@@ -43,7 +41,6 @@ const NAV_ITEMS: Array<{ page: Page; labelKey: string; icon: React.ReactElement 
   { page: 'providers', labelKey: 'nav.providers', icon: <IconKey /> },
   { page: 'skills', labelKey: 'nav.skills', icon: <IconBolt /> },
   { page: 'memory', labelKey: 'nav.memory', icon: <IconMemory /> },
-  { page: 'diagnostics', labelKey: 'nav.diagnostics', icon: <IconPulse /> },
   { page: 'settings', labelKey: 'nav.settings', icon: <IconSettings /> },
 ]
 
