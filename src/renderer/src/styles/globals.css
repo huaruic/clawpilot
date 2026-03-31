@@ -1,14 +1,183 @@
 @import "tailwindcss";
 
-* {
-  box-sizing: border-box;
+/* ──────────────────────────────────────────────────────────────
+   ClawPilot Visual System (token-first)
+   - Tokens live in :root / [data-theme]
+   - Tailwind semantic colors are mapped via @theme
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  --cp-radius-card: 16px;
+  --cp-radius-control: 12px;
+  --cp-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 60px rgba(0, 0, 0, 0.45);
+  --cp-shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.28);
+  --cp-ring: color-mix(in oklab, var(--cp-primary) 55%, transparent);
+  --cp-link: color-mix(in oklab, var(--cp-primary) 85%, white 15%);
+
+  /* Default to dark to avoid FOUC before settings load. */
+  --cp-background: #0b0c0f;
+  --cp-foreground: #f4f6ff;
+  --cp-muted-foreground: rgba(244, 246, 255, 0.68);
+  --cp-surface: rgba(16, 18, 24, 0.72);
+  --cp-surface-2: rgba(20, 23, 31, 0.92);
+  --cp-border: rgba(255, 255, 255, 0.10);
+  --cp-border-strong: rgba(255, 255, 255, 0.16);
+  --cp-primary: #d4af37;
+  --cp-primary-foreground: #0b0c0f;
+  --cp-danger: #ef4444;
+  --cp-danger-foreground: #ffecec;
+  --cp-success: #22c55e;
+  --cp-warning: #f59e0b;
 }
 
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+:root[data-theme="dark"] {
+  --cp-background: #0b0c0f;
+  --cp-foreground: #f4f6ff;
+  --cp-muted-foreground: rgba(244, 246, 255, 0.68);
+
+  --cp-surface: rgba(16, 18, 24, 0.72);
+  --cp-surface-2: rgba(20, 23, 31, 0.92);
+
+  --cp-border: rgba(255, 255, 255, 0.10);
+  --cp-border-strong: rgba(255, 255, 255, 0.16);
+
+  --cp-primary: #d4af37;
+  --cp-primary-foreground: #0b0c0f;
+
+  --cp-danger: #ef4444;
+  --cp-danger-foreground: #ffecec;
+  --cp-success: #22c55e;
+  --cp-warning: #f59e0b;
+}
+
+:root[data-theme="light"] {
+  --cp-background: #fafafa;
+  --cp-foreground: #0f172a;
+  --cp-muted-foreground: rgba(15, 23, 42, 0.62);
+
+  --cp-surface: rgba(255, 255, 255, 0.78);
+  --cp-surface-2: rgba(245, 246, 250, 0.96);
+
+  --cp-border: rgba(15, 23, 42, 0.12);
+  --cp-border-strong: rgba(15, 23, 42, 0.18);
+
+  --cp-primary: #b68c17;
+  --cp-primary-foreground: #0b0c0f;
+
+  --cp-danger: #dc2626;
+  --cp-danger-foreground: #ffffff;
+  --cp-success: #16a34a;
+  --cp-warning: #d97706;
+  --cp-link: color-mix(in oklab, var(--cp-primary) 75%, #0f172a 25%);
+}
+
+@theme {
+  --color-background: var(--cp-background);
+  --color-foreground: var(--cp-foreground);
+  --color-muted-foreground: var(--cp-muted-foreground);
+  --color-surface: var(--cp-surface);
+  --color-surface-2: var(--cp-surface-2);
+  --color-border: var(--cp-border);
+  --color-border-strong: var(--cp-border-strong);
+  --color-primary: var(--cp-primary);
+  --color-primary-foreground: var(--cp-primary-foreground);
+  --color-danger: var(--cp-danger);
+  --color-danger-foreground: var(--cp-danger-foreground);
+  --color-success: var(--cp-success);
+  --color-warning: var(--cp-warning);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1200px 800px at 18% -10%, color-mix(in oklab, var(--cp-primary) 14%, transparent), transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, color-mix(in oklab, var(--cp-primary) 10%, transparent), transparent 55%),
+      var(--cp-background);
+    color: var(--cp-foreground);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--cp-primary) 28%, transparent);
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  .cp-card {
+    @apply rounded-2xl border border-border bg-surface text-foreground;
+    box-shadow: var(--cp-shadow-card);
+    backdrop-filter: blur(10px);
+  }
+
+  .cp-card-muted {
+    @apply bg-surface-2;
+  }
+
+  .cp-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors;
+    @apply focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .cp-btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  .cp-btn-muted {
+    @apply bg-surface-2 text-foreground hover:bg-surface-2/80 border border-border;
+  }
+
+  .cp-btn-danger {
+    @apply bg-danger text-danger-foreground hover:bg-danger/90;
+  }
+
+  .cp-input {
+    @apply w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply outline-none transition-colors;
+  }
+
+  .cp-select {
+    @apply w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground;
+    @apply focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply outline-none transition-colors;
+  }
+
+  .cp-badge {
+    @apply inline-flex items-center rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-muted-foreground;
+  }
+
+  .cp-kbd {
+    @apply rounded-lg border border-border-strong bg-surface-2 px-2 py-1 font-mono text-[11px] text-muted-foreground;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .chat-markdown {
@@ -46,7 +215,7 @@ html, body, #root {
 }
 
 .chat-markdown a {
-  color: #a5b4fc;
+  color: var(--cp-link);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -58,20 +227,20 @@ html, body, #root {
 .chat-markdown blockquote {
   margin-left: 0;
   padding-left: 0.9rem;
-  border-left: 3px solid rgba(255, 255, 255, 0.18);
-  color: rgba(244, 244, 245, 0.8);
+  border-left: 3px solid var(--cp-border-strong);
+  color: var(--cp-muted-foreground);
 }
 
 .chat-markdown hr {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--cp-border);
   margin: 1rem 0;
 }
 
 .chat-inline-code {
   padding: 0.12rem 0.35rem;
   border-radius: 0.4rem;
-  background: rgba(255, 255, 255, 0.09);
+  background: color-mix(in oklab, var(--cp-surface-2) 70%, transparent);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.92em;
 }
@@ -80,8 +249,8 @@ html, body, #root {
   overflow-x: auto;
   padding: 0.85rem 1rem;
   border-radius: 0.9rem;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in oklab, var(--cp-background) 65%, var(--cp-surface-2));
+  border: 1px solid var(--cp-border);
 }
 
 .chat-markdown pre code {
@@ -94,16 +263,16 @@ html, body, #root {
   border-collapse: collapse;
   overflow: hidden;
   border-radius: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--cp-border);
 }
 
 .chat-markdown th,
 .chat-markdown td {
   padding: 0.55rem 0.7rem;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--cp-border);
 }
 
 .chat-markdown th {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in oklab, var(--cp-surface-2) 78%, transparent);
 }

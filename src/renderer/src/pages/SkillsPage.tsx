@@ -174,28 +174,28 @@ export function SkillsPage(): React.ReactElement {
     <div className="flex flex-col h-full p-6 gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-white">Skills</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-xl font-semibold text-foreground">Skills</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Review the skills available in OpenClaw, turn them on or off, and manage local installs.
           </p>
         </div>
         <button
           onClick={() => void loadSkills()}
           disabled={refreshing || loading}
-          className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="cp-btn cp-btn-muted px-4 py-2"
         >
           {refreshing ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       {message && (
-        <div className="rounded-lg border border-green-900 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+        <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
           {message}
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -207,11 +207,11 @@ export function SkillsPage(): React.ReactElement {
         <SummaryCard label="Local" value={String(skillsResult?.summary.local ?? '0')} />
       </div>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+      <section className="rounded-2xl border border-border bg-surface p-5 space-y-5">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-lg font-medium text-zinc-100">Installed</h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <h2 className="text-lg font-medium text-foreground">Installed</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
               This list is read directly from local OpenClaw skill folders and configuration.
             </p>
           </div>
@@ -221,17 +221,17 @@ export function SkillsPage(): React.ReactElement {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search installed skills"
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500"
+              className="cp-input"
             />
           </label>
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
             Loading skills from OpenClaw...
           </div>
         ) : installedSkills.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+          <div className="rounded-xl border border-border bg-surface-2 px-4 py-6 text-sm text-muted-foreground">
             No skills matched the current search.
           </div>
         ) : (
@@ -249,10 +249,10 @@ export function SkillsPage(): React.ReactElement {
         )}
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+      <section className="rounded-2xl border border-border bg-surface p-5 space-y-5">
         <div>
-          <h2 className="text-lg font-medium text-zinc-100">Featured</h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h2 className="text-lg font-medium text-foreground">Featured</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Curated recommendations for a mixed workflow, with office automation first.
           </p>
         </div>
@@ -269,9 +269,9 @@ export function SkillsPage(): React.ReactElement {
 
 function SummaryCard({ label, value }: { label: string; value: string }): React.ReactElement {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <div className="text-xs uppercase tracking-[0.12em] text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-foreground">{value}</div>
     </div>
   )
 }
@@ -285,26 +285,26 @@ function SkillRow(props: {
   const { skill, busy, onToggle, onDelete } = props
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+    <div className="rounded-2xl border border-border bg-surface-2 p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base font-medium text-zinc-100">
+            <span className="text-base font-medium text-foreground">
               {skill.emoji ? `${skill.emoji} ` : ''}{skill.name}
             </span>
             <Badge>{formatSource(skill.source)}</Badge>
             <StatusBadge skill={skill} />
           </div>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             {skill.description || 'No description provided by this skill.'}
           </p>
-          <div className="text-sm text-zinc-500">Key: {skill.skillKey}</div>
+          <div className="text-sm text-muted-foreground">Key: <span className="font-mono">{skill.skillKey}</span></div>
           {skill.homepage && (
             <a
               href={skill.homepage}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex text-sm text-violet-300 underline underline-offset-2"
+              className="inline-flex text-sm text-primary underline underline-offset-2"
             >
               Skill homepage
             </a>
@@ -314,7 +314,7 @@ function SkillRow(props: {
           <button
             onClick={onToggle}
             disabled={busy}
-            className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="cp-btn cp-btn-muted px-3 py-2 text-sm"
           >
             {busy ? 'Working...' : skill.enabled ? 'Disable' : 'Enable'}
           </button>
@@ -322,7 +322,7 @@ function SkillRow(props: {
             <button
               onClick={onDelete}
               disabled={busy}
-              className="rounded-xl border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300 transition-colors hover:border-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cp-btn px-3 py-2 text-sm bg-danger/10 text-danger border border-danger/30 hover:bg-danger/15"
             >
               Delete
             </button>
@@ -340,16 +340,16 @@ function FeaturedSkillCard(props: {
   const installed = featured.installed
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
+    <div className="rounded-2xl border border-border bg-surface-2 p-4 space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="text-base font-medium text-zinc-100">{featured.title}</div>
+        <div className="text-base font-medium text-foreground">{featured.title}</div>
         <Badge>{featured.category}</Badge>
         <Badge>{featured.risk} risk</Badge>
         {installed ? <StatusBadge skill={installed} /> : <Badge>Not available</Badge>}
       </div>
-      <p className="text-sm text-zinc-400">{featured.summary}</p>
-      <p className="text-sm text-zinc-500">{featured.recommendation}</p>
-      <div className="text-sm text-zinc-300">
+      <p className="text-sm text-muted-foreground">{featured.summary}</p>
+      <p className="text-sm text-muted-foreground">{featured.recommendation}</p>
+      <div className="text-sm text-foreground/80">
         {installed
           ? installed.enabled
             ? `Installed locally as ${formatSource(installed.source)} and currently enabled.`
@@ -362,15 +362,13 @@ function FeaturedSkillCard(props: {
 
 function Badge({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300">
-      {children}
-    </span>
+    <span className="cp-badge">{children}</span>
   )
 }
 
 function StatusBadge({ skill }: { skill: SkillInfo }): React.ReactElement {
   const label = skill.enabled ? 'Enabled' : 'Disabled'
-  const className = skill.enabled ? 'bg-green-950/50 text-green-300' : 'bg-zinc-800 text-zinc-300'
+  const className = skill.enabled ? 'bg-success/10 text-success border border-success/25' : 'bg-surface-2 text-muted-foreground border border-border'
 
   return <span className={`rounded-full px-2.5 py-1 text-xs ${className}`}>{label}</span>
 }

@@ -9,9 +9,7 @@ import { registerProviderIpc } from './provider.ipc'
 import { registerChannelsIpc } from './channels.ipc'
 import { registerSkillsIpc } from './skills.ipc'
 import { registerDiagnosticsIpc } from './diagnostics.ipc'
-import { registerLogsIpc } from './logs.ipc'
 import { OpenClawDiagnostics } from '../services/OpenClawDiagnostics'
-import { LogsService } from '../services/LogsService'
 
 interface Deps {
   processManager: OpenClawProcessManager
@@ -31,7 +29,5 @@ export function registerAllIpc(deps: Deps): void {
 
   // Diagnostics and Logs
   const diagnostics = new OpenClawDiagnostics()
-  const logsService = new LogsService()
   registerDiagnosticsIpc(diagnostics)
-  registerLogsIpc(logsService)
 }

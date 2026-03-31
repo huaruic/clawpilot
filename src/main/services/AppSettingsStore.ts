@@ -3,13 +3,16 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 export type AppLanguage = 'system' | 'zh-CN' | 'en'
+export type AppTheme = 'system' | 'light' | 'dark'
 
 export interface AppSettings {
   language: AppLanguage
+  theme: AppTheme
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'system',
+  theme: 'system',
 }
 
 function getSettingsPath(): string {
@@ -18,10 +21,14 @@ function getSettingsPath(): string {
 
 function normalizeSettings(raw: unknown): AppSettings {
   const language = (raw as { language?: unknown } | null)?.language
+  const theme = (raw as { theme?: unknown } | null)?.theme
   return {
     language: language === 'zh-CN' || language === 'en' || language === 'system'
       ? language
       : DEFAULT_SETTINGS.language,
+    theme: theme === 'light' || theme === 'dark' || theme === 'system'
+      ? theme
+      : DEFAULT_SETTINGS.theme,
   }
 }
 

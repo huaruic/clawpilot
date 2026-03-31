@@ -35,7 +35,7 @@ function resolveLanguage(language: AppLanguage, systemLocale: string): 'zh-CN' |
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }): React.ReactElement {
-  const [settings, setSettings] = useState<AppSettings>({ language: 'system' })
+  const [settings, setSettings] = useState<AppSettings>({ language: 'system', theme: 'system' })
   const [systemLocale, setSystemLocale] = useState('en')
 
   useEffect(() => {
@@ -55,6 +55,32 @@ export function I18nProvider({ children }: { children: React.ReactNode }): React
 
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mediaQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
+    const applyTheme = (): void => {
+      const effectiveTheme = settings.theme === 'system'
+        ? (mediaQuery?.matches ? 'dark' : 'light')
+        : settings.theme
+      document.documentElement.dataset.theme = effectiveTheme
+    }
+
+    applyTheme()
+    if (settings.theme !== 'system' || !mediaQuery) {
+      return
+    }
+
+    const handler = (): void => applyTheme()
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handler)
+      return () => mediaQuery.removeEventListener('change', handler)
+    }
+
+    mediaQuery.addListener(handler)
+    return () => mediaQuery.removeListener(handler)
+  }, [settings.theme])
 
   const resolvedLanguage = resolveLanguage(settings.language, systemLocale)
 

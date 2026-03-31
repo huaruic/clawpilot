@@ -1,342 +1,258 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type { DiagnosticIssue, DiagnosticReport } from '../api/ipc'
+import { useI18n } from '../i18n/I18nProvider'
+
+type SeverityFilter = 'all' | 'error' | 'warning' | 'info'
+
+const CATEGORY_KEY: Record<DiagnosticIssue['category'], string> = {
+  runtime: 'app.diagnostics.categoryRuntime',
+  provider: 'app.diagnostics.categoryProviders',
+  channel: 'app.diagnostics.categoryChannels',
+  skill: 'app.diagnostics.categorySkills',
+  config: 'app.diagnostics.categoryConfig',
+  workspace: 'app.diagnostics.categoryWorkspace',
+}
+
+const SEVERITY_STYLE: Record<DiagnosticIssue['severity'], string> = {
+  error: 'text-danger border-danger/30 bg-danger/10',
+  warning: 'text-warning border-warning/30 bg-warning/10',
+  info: 'text-muted-foreground border-border bg-surface-2',
+}
 
 export function DiagnosticsPage(): React.ReactElement {
+  const { t } = useI18n()
   const [report, setReport] = useState<DiagnosticReport | null>(null)
   const [loading, setLoading] = useState(false)
-  const [fixing, setFixing] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    runDiagnostics()
-  }, [])
+  const [fixingIssue, setFixingIssue] = useState<string | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [filter, setFilter] = useState<SeverityFilter>('all')
 
   const runDiagnostics = async (): Promise<void> => {
     setLoading(true)
-    setErrorMessage(null)
+    setRunError(null)
+    setFeedback(null)
     try {
-      const result = await window.clawpilot.diagnostics.run()
-      setReport(result)
+      const next = await window.clawpilot.diagnostics.run()
+      setReport(next)
     } catch (error) {
-      console.error('Failed to run diagnostics:', error)
-      setErrorMessage(error instanceof Error ? error.message : String(error))
+      setRunError(error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    void runDiagnostics()
+  }, [])
+
   const handleFix = async (issue: DiagnosticIssue): Promise<void> => {
-    setFixing(issue.title)
+    setFixingIssue(issue.title)
+    setFeedback(null)
     try {
       const result = await window.clawpilot.diagnostics.fix(issue)
+      setFeedback({
+        type: result.success ? 'success' : 'error',
+        text: result.success ? result.message : `${result.message}${result.output ? `: ${result.output}` : ''}`,
+      })
       if (result.success) {
-        alert(`修复成功: ${result.message}`)
-        await runDiagnostics() // 重新运行诊断
-      } else {
-        alert(`修复失败: ${result.message}\n${result.output || ''}`)
+        await runDiagnostics()
       }
     } catch (error) {
-      alert(`修复出错: ${error}`)
+      setFeedback({ type: 'error', text: error instanceof Error ? error.message : String(error) })
     } finally {
-      setFixing(null)
+      setFixingIssue(null)
     }
   }
 
   const handleExport = async (): Promise<void> => {
+    if (!report) return
     setExporting(true)
+    setFeedback(null)
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `clawpilot-diagnostics-${timestamp}.json`
-
       const outputPath = await window.clawpilot.app.showSaveDialog({
         title: 'Export Diagnostics Bundle',
-        defaultPath: filename,
+        defaultPath: `clawpilot-diagnostics-${timestamp}.json`,
         filters: [{ name: 'JSON', extensions: ['json'] }],
       })
-
       if (!outputPath) return
-
       await window.clawpilot.diagnostics.exportBundle({ outputPath })
-      alert(`诊断报告已导出到: ${outputPath}`)
+      setFeedback({ type: 'success', text: `${t('app.diagnostics.exportedTo')} ${outputPath}` })
     } catch (error) {
-      alert(`导出失败: ${error}`)
+      setFeedback({ type: 'error', text: error instanceof Error ? error.message : String(error) })
     } finally {
       setExporting(false)
     }
   }
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'healthy':
-        return 'text-green-500'
-      case 'warning':
-        return 'text-yellow-500'
-      case 'error':
-        return 'text-red-500'
-      default:
-        return 'text-zinc-400'
-    }
-  }
+  const filteredIssues = useMemo(() => {
+    const issues = report?.issues ?? []
+    return filter === 'all' ? issues : issues.filter((issue) => issue.severity === filter)
+  }, [report, filter])
 
-  const getSeverityColor = (severity: string): string => {
-    switch (severity) {
-      case 'error':
-        return 'bg-red-500/10 text-red-500 border-red-500/20'
-      case 'warning':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
-      case 'info':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-      default:
-        return 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20'
-    }
-  }
+  const categorySummaries = useMemo(() => {
+    const issues = report?.issues ?? []
+    return (Object.keys(CATEGORY_KEY) as Array<DiagnosticIssue['category']>).map((category) => {
+      const bucket = issues.filter((issue) => issue.category === category)
+      const errorCount = bucket.filter((issue) => issue.severity === 'error').length
+      const warningCount = bucket.filter((issue) => issue.severity === 'warning').length
+      const infoCount = bucket.filter((issue) => issue.severity === 'info').length
+      const state = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : infoCount > 0 ? 'info' : 'healthy'
+      return { category, state, count: bucket.length }
+    })
+  }, [report])
 
-  const getCategoryStatus = (category: DiagnosticIssue['category']): {
-    status: 'healthy' | 'warning' | 'error' | 'info'
-    count: number
-  } => {
-    if (!report) {
-      return { status: 'healthy', count: 0 }
-    }
-    const items = report.issues.filter((issue) => issue.category === category)
-    if (items.some((issue) => issue.severity === 'error')) {
-      return { status: 'error', count: items.length }
-    }
-    if (items.some((issue) => issue.severity === 'warning')) {
-      return { status: 'warning', count: items.length }
-    }
-    if (items.some((issue) => issue.severity === 'info')) {
-      return { status: 'info', count: items.length }
-    }
-    return { status: 'healthy', count: 0 }
-  }
-
-  const getCategoryStatusColor = (status: 'healthy' | 'warning' | 'error' | 'info'): string => {
-    switch (status) {
-      case 'healthy':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-      case 'warning':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-      case 'error':
-        return 'bg-red-500/10 text-red-400 border-red-500/20'
-      case 'info':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-      default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
-    }
-  }
-
-  const getCategoryIcon = (category: string): string => {
-    switch (category) {
-      case 'runtime':
-        return '⚙️'
-      case 'config':
-        return '📝'
-      case 'provider':
-        return '🔌'
-      case 'channel':
-        return '📡'
-      case 'skill':
-        return '🧩'
-      case 'workspace':
-        return '📁'
-      default:
-        return '❓'
-    }
-  }
+  const overallTone =
+    report?.overallStatus === 'error'
+      ? 'text-danger border-danger/30 bg-danger/10'
+      : report?.overallStatus === 'warning'
+        ? 'text-warning border-warning/30 bg-warning/10'
+        : 'text-success border-success/30 bg-success/10'
 
   return (
-    <div className="flex flex-col h-full p-6 overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-white">系统诊断</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            检测 OpenClaw 运行环境并提供修复建议
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={runDiagnostics}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-md text-sm transition-colors"
-          >
-            {loading ? '诊断中...' : '重新诊断'}
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting || !report}
-            className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-md text-sm transition-colors"
-          >
-            {exporting ? '导出中...' : '导出报告'}
-          </button>
-        </div>
-      </div>
-
-      {/* Overall Status */}
-      {report && (
-        <div className={`mb-6 p-4 rounded-lg border ${
-          report.overallStatus === 'healthy'
-            ? 'bg-green-500/10 border-green-500/20'
-            : report.overallStatus === 'warning'
-            ? 'bg-yellow-500/10 border-yellow-500/20'
-            : 'bg-red-500/10 border-red-500/20'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="text-3xl">
-              {report.overallStatus === 'healthy' ? '✅' : report.overallStatus === 'warning' ? '⚠️' : '❌'}
-            </div>
-            <div>
-              <h2 className={`text-lg font-semibold ${getStatusColor(report.overallStatus)}`}>
-                {report.overallStatus === 'healthy' ? '系统健康' : report.overallStatus === 'warning' ? '发现警告' : '发现错误'}
-              </h2>
-              <p className="text-sm text-zinc-400">
-                {report.issues.length} 个问题 · {new Date(report.timestamp).toLocaleString()}
-              </p>
-            </div>
+    <div className="h-full overflow-y-auto p-8">
+      <section className="cp-card p-6 space-y-6">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{t('app.diagnostics.title')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('app.diagnostics.subtitle')}
+            </p>
           </div>
-        </div>
-      )}
+          <div className="flex items-center gap-2">
+            <button className="cp-btn cp-btn-muted" onClick={() => void runDiagnostics()} disabled={loading}>
+              {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
+            </button>
+            <button className="cp-btn cp-btn-primary" onClick={() => void handleExport()} disabled={!report || exporting}>
+              {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
+            </button>
+          </div>
+        </header>
 
-      {/* Status Cards */}
-      {report && (
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {([
-            { key: 'runtime', label: 'Gateway / Runtime' },
-            { key: 'provider', label: 'Providers' },
-            { key: 'channel', label: 'Channels' },
-            { key: 'skill', label: 'Skills' },
-            { key: 'config', label: 'Config' },
-            { key: 'workspace', label: 'Workspace' },
-          ] as Array<{ key: DiagnosticIssue['category']; label: string }>).map((item) => {
-            const status = getCategoryStatus(item.key)
-            return (
-              <div
-                key={item.key}
-                className={`p-4 rounded-lg border ${getCategoryStatusColor(status.status)}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{getCategoryIcon(item.key)}</span>
-                    <div>
-                      <div className="text-sm font-semibold text-white">{item.label}</div>
-                      <div className="text-xs text-zinc-400">
-                        {status.status === 'healthy'
-                          ? 'Healthy'
-                          : status.status === 'warning'
-                          ? 'Warnings'
-                          : status.status === 'error'
-                          ? 'Errors'
-                          : 'Info'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold">
-                    {status.count}
-                  </div>
+        {feedback && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              feedback.type === 'success'
+                ? 'text-success border-success/30 bg-success/10'
+                : 'text-danger border-danger/30 bg-danger/10'
+            }`}
+          >
+            {feedback.text}
+          </div>
+        )}
+
+        {runError && <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{runError}</div>}
+
+        {report && (
+          <>
+            <div className={`rounded-2xl border px-4 py-4 ${overallTone}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-wide">{t('app.diagnostics.overallHealth')}</p>
+                  <p className="mt-1 text-lg font-semibold">{report.overallStatus.toUpperCase()}</p>
+                </div>
+                <div className="text-right text-sm">
+                  <p>{report.issues.length} {t('app.diagnostics.issuesLabel')}</p>
+                  <p className="text-muted-foreground">{new Date(report.timestamp).toLocaleString()}</p>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* System Info */}
-      {report && (
-        <div className="mb-6 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-          <h3 className="text-sm font-semibold text-white mb-3">系统信息</h3>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-zinc-500">平台:</span>
-              <span className="ml-2 text-white">{report.systemInfo.platform}</span>
             </div>
-            <div>
-              <span className="text-zinc-500">Node版本:</span>
-              <span className="ml-2 text-white">{report.systemInfo.nodeVersion}</span>
-            </div>
-            {report.systemInfo.openclawVersion && (
-              <div>
-                <span className="text-zinc-500">OpenClaw版本:</span>
-                <span className="ml-2 text-white">{report.systemInfo.openclawVersion}</span>
-              </div>
-            )}
-            <div className="col-span-2">
-              <span className="text-zinc-500">数据目录:</span>
-              <span className="ml-2 text-white text-xs font-mono break-all">{report.systemInfo.stateDir}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Issues List */}
-      {errorMessage && (
-        <div className="mb-6 p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-sm">
-          诊断失败：{errorMessage}
-        </div>
-      )}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-zinc-500">正在运行诊断...</div>
-        </div>
-      )}
-
-      {!loading && report && report.issues.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="text-6xl mb-4">🎉</div>
-          <h3 className="text-lg font-semibold text-white mb-2">没有发现问题</h3>
-          <p className="text-sm text-zinc-500">系统运行良好！</p>
-        </div>
-      )}
-
-      {!loading && report && report.issues.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-white mb-3">发现的问题</h3>
-          {report.issues.map((issue, index) => (
-            <div
-              key={index}
-              className={`p-4 rounded-lg border ${getSeverityColor(issue.severity)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">{getCategoryIcon(issue.category)}</span>
-                    <span className="text-xs uppercase font-semibold text-zinc-400">
-                      {issue.category}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                      issue.severity === 'error' ? 'bg-red-500/20 text-red-400' :
-                      issue.severity === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-blue-500/20 text-blue-400'
-                    }`}>
-                      {issue.severity.toUpperCase()}
-                    </span>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {categorySummaries.map((item) => (
+                <div key={item.category} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{t(CATEGORY_KEY[item.category])}</p>
+                    <span className="cp-badge">{item.count}</span>
                   </div>
-                  <h4 className="text-sm font-semibold text-white mb-1">{issue.title}</h4>
-                  <p className="text-sm text-zinc-300 mb-2">{issue.description}</p>
-                  {issue.details && (
-                    <details className="text-xs text-zinc-500 mt-2">
-                      <summary className="cursor-pointer hover:text-zinc-400">详细信息</summary>
-                      <pre className="mt-2 p-2 bg-black/30 rounded text-xs overflow-x-auto">
-                        {issue.details}
-                      </pre>
-                    </details>
-                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">{item.state === 'healthy' ? t('app.diagnostics.healthy') : item.state.toUpperCase()}</p>
                 </div>
-                {issue.fixable && (
-                  <button
-                    onClick={() => handleFix(issue)}
-                    disabled={fixing !== null}
-                    className="ml-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded text-sm transition-colors whitespace-nowrap"
-                  >
-                    {fixing === issue.title ? '修复中...' : '自动修复'}
-                  </button>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-2 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">{t('app.diagnostics.issuesTitle')}</h2>
+                <div className="flex items-center gap-2">
+                  {(['all', 'error', 'warning', 'info'] as SeverityFilter[]).map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setFilter(option)}
+                      className={`cp-btn px-3 py-1.5 text-xs ${filter === option ? 'cp-btn-primary' : 'cp-btn-muted'}`}
+                    >
+                      {option === 'all'
+                        ? t('app.diagnostics.filterAll')
+                        : option === 'error'
+                          ? t('app.diagnostics.filterError')
+                          : option === 'warning'
+                            ? t('app.diagnostics.filterWarning')
+                            : t('app.diagnostics.filterInfo')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {filteredIssues.length === 0 && (
+                  <div className="rounded-xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+                    {loading ? t('app.diagnostics.diagnosticsRunning') : t('app.diagnostics.noIssuesInFilter')}
+                  </div>
                 )}
+                {filteredIssues.map((issue, index) => (
+                  <article key={`${issue.category}-${issue.title}-${index}`} className="rounded-xl border border-border bg-surface px-4 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="cp-badge">{t(CATEGORY_KEY[issue.category])}</span>
+                          <span className={`rounded-full border px-2 py-0.5 text-xs ${SEVERITY_STYLE[issue.severity]}`}>
+                            {issue.severity.toUpperCase()}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-semibold">{issue.title}</h3>
+                        <p className="text-sm text-muted-foreground">{issue.description}</p>
+                        {issue.details && (
+                          <details className="text-xs text-muted-foreground">
+                            <summary className="cursor-pointer">{t('app.diagnostics.details')}</summary>
+                            <pre className="mt-2 overflow-x-auto rounded-xl border border-border bg-background p-3">{issue.details}</pre>
+                          </details>
+                        )}
+                      </div>
+                      {issue.fixable && (
+                        <button
+                          className="cp-btn cp-btn-muted whitespace-nowrap"
+                          onClick={() => void handleFix(issue)}
+                          disabled={fixingIssue !== null}
+                        >
+                          {fixingIssue === issue.title ? t('app.diagnostics.fixing') : t('app.diagnostics.autoFix')}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-surface-2 p-4 md:grid-cols-2">
+              <p className="text-sm text-muted-foreground">
+                {t('app.diagnostics.platform')}: <span className="text-foreground">{report.systemInfo.platform}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t('app.diagnostics.node')}: <span className="text-foreground">{report.systemInfo.nodeVersion}</span>
+              </p>
+              <p className="text-sm text-muted-foreground md:col-span-2">
+                {t('app.diagnostics.stateDirectory')}: <span className="font-mono text-xs text-foreground">{report.systemInfo.stateDir}</span>
+              </p>
+              {report.systemInfo.openclawVersion && (
+                <p className="text-sm text-muted-foreground md:col-span-2">
+                  OpenClaw: <span className="text-foreground">{report.systemInfo.openclawVersion}</span>
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 }
