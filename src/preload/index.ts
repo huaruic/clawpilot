@@ -132,4 +132,17 @@ contextBridge.exposeInMainWorld('clawpilot', {
       level?: 'debug' | 'info' | 'warn' | 'error'
     }): Promise<void> => ipcRenderer.invoke('logs:export', params),
   },
+
+  usage: {
+    listSessions: (params?: { agentId?: string; limit?: number; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:listSessions', params ?? {}),
+    aggregateByModel: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:aggregateByModel', params ?? {}),
+    listMessages: (params?: { agentId?: string; limit?: number; offset?: number; since?: number; until?: number }): Promise<unknown> =>
+      ipcRenderer.invoke('usage:listMessages', params ?? {}),
+    breakdownByModel: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:breakdownByModel', params ?? {}),
+    breakdownByDay: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:breakdownByDay', params ?? {}),
+  },
 })
