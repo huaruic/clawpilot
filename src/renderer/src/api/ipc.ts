@@ -1,9 +1,11 @@
 export type RuntimeStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'UPDATING'
 export type SetupPhase = 'gateway_setup' | 'model_setup' | 'bootstrap' | 'ready'
 export type AppLanguage = 'system' | 'zh-CN' | 'en'
+export type AppTheme = 'system' | 'light' | 'dark'
 
 export interface AppSettings {
   language: AppLanguage
+  theme: AppTheme
 }
 
 export interface OpenClawSetup {
@@ -80,21 +82,6 @@ export interface DiagnosticFixResult {
   success: boolean
   message: string
   output?: string
-}
-
-export interface LogEntry {
-  timestamp: number
-  level: 'debug' | 'info' | 'warn' | 'error'
-  message: string
-  source?: string
-  details?: Record<string, unknown>
-}
-
-export interface LogFile {
-  name: string
-  path: string
-  size: number
-  mtime: number
 }
 
 export interface FeishuConfigInfo {
@@ -226,24 +213,6 @@ export interface ClawPilotAPI {
     quickCheck: () => Promise<{ healthy: boolean; criticalIssues: DiagnosticIssue[] }>
     fix: (issue: DiagnosticIssue) => Promise<DiagnosticFixResult>
     exportBundle: (params: { outputPath: string }) => Promise<void>
-  }
-  logs: {
-    list: () => Promise<LogFile[]>
-    readFile: (params: { filename: string; limit?: number; offset?: number }) => Promise<string>
-    parse: (params: { filename: string; limit?: number; level?: LogEntry['level'] }) => Promise<LogEntry[]>
-    search: (params: {
-      query: string
-      files?: string[]
-      level?: LogEntry['level']
-      limit?: number
-    }) => Promise<Array<LogEntry & { file: string }>>
-    recent: (params: { limit?: number; level?: LogEntry['level'] }) => Promise<LogEntry[]>
-    clean: (params: { keepDays?: number; keepCount?: number }) => Promise<number>
-    export: (params: {
-      outputPath: string
-      files?: string[]
-      level?: LogEntry['level']
-    }) => Promise<void>
   }
 }
 

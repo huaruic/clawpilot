@@ -186,12 +186,12 @@ export function ProvidersPage(): React.ReactElement {
     <div className="flex flex-col h-full p-6 gap-5 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Providers</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Configure remote APIs and local fallback models</p>
+          <h1 className="text-xl font-semibold text-foreground">Providers</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Configure remote APIs and local fallback models</p>
         </div>
         <button
           onClick={() => { setShowForm(true); setTestResult(null) }}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors"
+          className="cp-btn cp-btn-primary px-4 py-2"
         >
           + Add Provider
         </button>
@@ -199,12 +199,12 @@ export function ProvidersPage(): React.ReactElement {
 
       {/* Current Model selector */}
       {providers.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-xs text-zinc-500 shrink-0">Current Model</span>
+        <div className="rounded-2xl bg-surface border border-border px-4 py-3 flex items-center gap-3">
+          <span className="text-xs text-muted-foreground shrink-0">Current Model</span>
           <select
             value={defaultModel}
             onChange={(e) => void handleSetDefault(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-2 py-1 outline-none focus:border-violet-500 transition-colors"
+            className="cp-select flex-1 bg-surface-2 px-3 py-2"
           >
             {defaultModel === '' && <option value="">— not set —</option>}
             {providers.flatMap((p) =>
@@ -220,21 +220,21 @@ export function ProvidersPage(): React.ReactElement {
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+      <div className="rounded-2xl bg-surface border border-border p-5 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-sm font-medium text-zinc-200">Local / Ollama</h2>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h2 className="text-sm font-medium text-foreground">Local / Ollama</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Optional fallback model for offline or degraded network cases.
             </p>
           </div>
-          <span className="text-xs px-2 py-1 bg-zinc-800 text-zinc-400 rounded-md font-mono">
+          <span className="text-xs px-2 py-1 bg-surface-2 text-muted-foreground rounded-md border border-border font-mono">
             qwen2.5:7b
           </span>
         </div>
 
         {ollamaLoading || !ollamaStatus ? (
-          <div className="text-sm text-zinc-500">Checking local Ollama runtime…</div>
+          <div className="text-sm text-muted-foreground">Checking local Ollama runtime…</div>
         ) : (
           <>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -248,25 +248,25 @@ export function ProvidersPage(): React.ReactElement {
             </div>
 
             {!ollamaStatus.running && (
-              <div className="rounded-lg border border-amber-900 bg-amber-950/40 px-4 py-3 space-y-3">
-                <p className="text-sm text-amber-300">
+              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 space-y-3">
+                <p className="text-sm text-warning">
                   ClawPilot could not reach Ollama at <span className="font-mono">http://127.0.0.1:11434</span>.
                   Install Ollama if needed, open it so the local API is running, then retry detection here.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => void handleOpenInstallPage()}
-                    className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-lg transition-colors"
+                    className="cp-btn px-4 py-2 bg-warning text-primary-foreground hover:bg-warning/90"
                   >
                     Open install page
                   </button>
                   <button
                     onClick={() => void refreshOllamaStatus()}
-                    className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg transition-colors"
+                    className="cp-btn cp-btn-muted px-4 py-2"
                   >
                     Retry detection
                   </button>
-                  <a href={OLLAMA_INSTALL_URL} target="_blank" rel="noreferrer" className="text-sm text-amber-200 underline underline-offset-2">
+                  <a href={OLLAMA_INSTALL_URL} target="_blank" rel="noreferrer" className="text-sm text-warning underline underline-offset-2">
                     Ollama docs
                   </a>
                 </div>
@@ -278,32 +278,32 @@ export function ProvidersPage(): React.ReactElement {
                 <button
                   onClick={() => void handlePullOllama()}
                   disabled={pullingOllama || ollamaStatus.downloading}
-                  className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+                  className="cp-btn cp-btn-primary px-4 py-2"
                 >
                   {pullingOllama || ollamaStatus.downloading ? 'Downloading…' : 'Download qwen2.5:7b'}
                 </button>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-muted-foreground">
                   This uses Ollama&apos;s local API and only adds the model as an optional provider. It will not replace your current default model.
                 </p>
               </div>
             )}
 
             {ollamaStatus.running && !ollamaStatus.recommendedInstalled && (ollamaStatus.downloading || ollamaStatus.downloadProgress > 0) && (
-              <div className="space-y-2">
-                <div className="h-2 overflow-hidden rounded-full bg-violet-950/60">
+                <div className="space-y-2">
+                <div className="h-2 overflow-hidden rounded-full bg-surface-2 border border-border">
                   <div
-                    className="h-full rounded-full bg-violet-500 transition-[width] duration-300"
+                    className="h-full rounded-full bg-primary transition-[width] duration-300"
                     style={{ width: `${Math.max(4, ollamaStatus.downloadProgress)}%` }}
                   />
                 </div>
-                <p className="text-xs text-violet-300">
+                <p className="text-xs text-muted-foreground">
                   Model download progress: {ollamaStatus.downloadProgress}%
                 </p>
               </div>
             )}
 
             {ollamaStatus.running && ollamaStatus.recommendedInstalled && (
-              <div className="rounded-lg border border-green-900 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+              <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
                 qwen2.5:7b is ready in Ollama.
                 {ollamaProvider
                   ? ' Select ollama / Qwen 2.5 7B from Current Model above when you want to use it.'
@@ -312,19 +312,19 @@ export function ProvidersPage(): React.ReactElement {
             )}
 
             {(ollamaStatus.downloadLog.length > 0 || ollamaStatus.error) && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 space-y-2">
+              <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">Ollama Activity</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ollama Activity</span>
                   <div className="flex items-center gap-3">
-                    {ollamaRefreshing && <span className="text-xs text-zinc-500">Refreshing…</span>}
-                    {ollamaStatus.downloading && <span className="text-xs text-violet-400">Download in progress</span>}
+                    {ollamaRefreshing && <span className="text-xs text-muted-foreground">Refreshing…</span>}
+                    {ollamaStatus.downloading && <span className="text-xs text-primary">Download in progress</span>}
                   </div>
                 </div>
                 {ollamaStatus.error && (
-                  <p className="text-sm text-red-400">{ollamaStatus.error}</p>
+                  <p className="text-sm text-danger">{ollamaStatus.error}</p>
                 )}
                 {ollamaStatus.downloadLog.length > 0 && (
-                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5 text-zinc-300">
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5 text-foreground/80">
                     {ollamaStatus.downloadLog.slice(-12).join('\n')}
                   </pre>
                 )}
@@ -336,8 +336,8 @@ export function ProvidersPage(): React.ReactElement {
 
       {/* Add form */}
       {showForm && (
-        <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-5 space-y-4">
-          <h2 className="text-sm font-medium text-zinc-200">New Provider</h2>
+        <div className="rounded-2xl bg-surface border border-border p-5 space-y-4">
+          <h2 className="text-sm font-medium text-foreground">New Provider</h2>
 
           {/* Presets */}
           <div className="flex flex-wrap gap-2">
@@ -347,8 +347,8 @@ export function ProvidersPage(): React.ReactElement {
                 onClick={() => applyPreset(p.label)}
                 className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
                   form.presetKey === p.label
-                    ? 'bg-violet-600 border-violet-600 text-white'
-                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-border text-muted-foreground hover:border-border-strong hover:text-foreground'
                 }`}
               >
                 {p.label}
@@ -364,7 +364,9 @@ export function ProvidersPage(): React.ReactElement {
           </div>
 
           {testResult && (
-            <p className={`text-xs px-3 py-2 rounded-lg ${testResult.ok ? 'bg-green-950 text-green-400' : 'bg-red-950 text-red-400'}`}>
+            <p className={`text-xs px-3 py-2 rounded-xl border ${
+              testResult.ok ? 'border-success/30 bg-success/10 text-success' : 'border-danger/30 bg-danger/10 text-danger'
+            }`}>
               {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
             </p>
           )}
@@ -373,20 +375,20 @@ export function ProvidersPage(): React.ReactElement {
             <button
               onClick={() => void handleTest()}
               disabled={!form.baseUrl || !form.apiKey || testing}
-              className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 rounded-lg transition-colors"
+              className="cp-btn cp-btn-muted px-4 py-2"
             >
               {testing ? 'Testing…' : 'Test'}
             </button>
             <button
               onClick={() => void handleSave()}
               disabled={!form.name || !form.baseUrl || !form.apiKey || saving}
-              className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+              className="cp-btn cp-btn-primary px-4 py-2"
             >
               {saving ? 'Saving…' : 'Save & Restart'}
             </button>
             <button
               onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setTestResult(null) }}
-              className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors ml-auto"
+              className="cp-btn px-3 py-2 bg-transparent text-muted-foreground hover:text-foreground ml-auto"
             >
               Cancel
             </button>
@@ -397,25 +399,25 @@ export function ProvidersPage(): React.ReactElement {
       {/* Provider list */}
       {providers.length === 0 && !showForm && (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
-          <p className="text-zinc-400">No providers configured</p>
-          <p className="text-zinc-600 text-sm mt-1">Add an API key to start chatting</p>
+          <p className="text-muted-foreground">No providers configured</p>
+          <p className="text-muted-foreground text-sm mt-1">Add an API key to start chatting</p>
         </div>
       )}
 
       <div className="space-y-2">
         {providers.map((p) => (
-          <div key={p.name} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
+          <div key={p.name} className="flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-zinc-200">{p.name}</p>
-              <p className="text-xs text-zinc-500 truncate mt-0.5">{p.baseUrl}</p>
+              <p className="text-sm font-medium text-foreground">{p.name}</p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{p.baseUrl}</p>
             </div>
             {p.api && (
-              <span className="text-xs px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md font-mono">{p.api}</span>
+              <span className="text-xs px-2 py-0.5 bg-surface-2 text-muted-foreground rounded-md border border-border font-mono">{p.api}</span>
             )}
             {p.name !== 'ollama' && (
               <button
                 onClick={() => void handleDelete(p.name)}
-                className="text-xs text-red-500 hover:text-red-400 transition-colors px-2"
+                className="text-xs text-danger hover:text-danger/90 transition-colors px-2"
               >
                 Delete
               </button>
@@ -429,9 +431,9 @@ export function ProvidersPage(): React.ReactElement {
 
 function StatusPill({ label, value, ok }: { label: string; value: string; ok: boolean }): React.ReactElement {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className={`text-sm mt-1 ${ok ? 'text-green-400' : 'text-zinc-300'}`}>{value}</p>
+    <div className="rounded-xl border border-border bg-surface-2 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-sm mt-1 ${ok ? 'text-success' : 'text-foreground/80'}`}>{value}</p>
     </div>
   )
 }
@@ -443,13 +445,13 @@ function Field({
 }): React.ReactElement {
   return (
     <div className={className}>
-      <label className="block text-xs text-zinc-500 mb-1">{label}</label>
+      <label className="block text-xs text-muted-foreground mb-1">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-zinc-800 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors"
+        className="w-full bg-surface-2 border border-border focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors"
       />
     </div>
   )

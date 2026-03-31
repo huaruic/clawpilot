@@ -207,61 +207,61 @@ export function ChannelsPage(): React.ReactElement {
   return (
     <div className="flex flex-col h-full p-6 gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-white">Channels</h1>
-        <p className="text-sm text-zinc-500 mt-1">Connect IM channels to the local OpenClaw runtime.</p>
+        <h1 className="text-xl font-semibold text-foreground">Channels</h1>
+        <p className="text-sm text-muted-foreground mt-1">Connect IM channels to the local OpenClaw runtime.</p>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-6 max-w-3xl">
+      <div className="rounded-2xl border border-border bg-surface p-6 space-y-6 max-w-3xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-medium text-zinc-100">Feishu</h2>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h2 className="text-lg font-medium text-foreground">Feishu</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Connect a Feishu bot through OpenClaw&apos;s WebSocket channel integration.
             </p>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs bg-zinc-800 text-zinc-300">
+          <span className="px-3 py-1 rounded-full text-xs bg-surface-2 border border-border text-muted-foreground">
             {statusLabel}
           </span>
         </div>
 
         {message && (
-          <div className="rounded-lg border border-green-900 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+          <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
             {message}
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
 
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-medium text-zinc-200">Step 1. Connect your Feishu app</div>
-            <p className="mt-1 text-sm text-zinc-500">
+            <div className="text-sm font-medium text-foreground">Step 1. Connect your Feishu app</div>
+            <p className="mt-1 text-sm text-muted-foreground">
               Enter the App ID and App Secret from the Feishu Open Platform. First version uses WebSocket mode only.
             </p>
           </div>
 
           <label className="block">
-            <span className="text-sm font-medium text-zinc-200">App ID</span>
+            <span className="text-sm font-medium text-foreground">App ID</span>
             <input
               value={appId}
               onChange={(event) => setAppId(event.target.value)}
               placeholder="cli_xxx"
-              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500"
+              className="cp-input mt-2"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-zinc-200">App Secret</span>
+            <span className="text-sm font-medium text-foreground">App Secret</span>
             <input
               type="password"
               value={appSecret}
               onChange={(event) => setAppSecret(event.target.value)}
               placeholder="Paste the Feishu App Secret"
-              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500"
+              className="cp-input mt-2"
             />
           </label>
 
@@ -269,21 +269,21 @@ export function ChannelsPage(): React.ReactElement {
             <button
               onClick={() => void handleSave()}
               disabled={saving || resetting || !appId.trim() || !appSecret.trim()}
-              className="px-4 py-2.5 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl transition-colors"
+              className="cp-btn cp-btn-primary px-4 py-2.5 text-sm"
             >
               {saving ? 'Saving...' : config?.enabled ? 'Reconnect Feishu' : 'Connect Feishu'}
             </button>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               Runtime: {snapshot.status}
             </span>
           </div>
         </div>
 
         {config?.enabled && (
-          <div className="border-t border-red-950 pt-6 space-y-3">
+          <div className="border-t border-border pt-6 space-y-3">
             <div>
-              <div className="text-sm font-medium text-red-300">Danger Zone</div>
-              <p className="mt-1 text-sm text-zinc-500">
+              <div className="text-sm font-medium text-danger">Danger Zone</div>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Reset removes Feishu credentials, clears pending Pairing Codes, and forgets approved Feishu senders.
               </p>
             </div>
@@ -291,17 +291,17 @@ export function ChannelsPage(): React.ReactElement {
             <button
               onClick={() => void handleReset()}
               disabled={resetting || saving || validating || approving}
-              className="px-4 py-2.5 text-sm bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white rounded-xl transition-colors"
+              className="cp-btn cp-btn-danger px-4 py-2.5 text-sm"
             >
               {resetting ? 'Resetting...' : 'Reset Feishu Channel'}
             </button>
           </div>
         )}
 
-        <div className="border-t border-zinc-800 pt-6 space-y-4">
+        <div className="border-t border-border pt-6 space-y-4">
           <div>
-            <div className="text-sm font-medium text-zinc-200">Step 2. Pair your private chat</div>
-            <p className="mt-1 text-sm text-zinc-500">
+            <div className="text-sm font-medium text-foreground">Step 2. Pair your private chat</div>
+            <p className="mt-1 text-sm text-muted-foreground">
               After configuration, go to Feishu, open a private chat with the bot, send any message, then approve the Pairing Code here if auto-approve does not finish it.
             </p>
           </div>
@@ -311,32 +311,32 @@ export function ChannelsPage(): React.ReactElement {
               href={`https://applink.feishu.cn/client/chat/open?openId=${encodeURIComponent(botOpenId)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm text-white hover:bg-sky-500 transition-colors"
+              className="cp-btn px-4 py-2.5 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Open {botName || 'Feishu bot'} chat
             </a>
           )}
 
           {config?.enabled && !pairingApproved && !pairingRequest && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-400">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
               Waiting for you to send a message to the bot in Feishu...
             </div>
           )}
 
           {pairingRequest && !pairingApproved && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
+            <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground/80">
               Latest Pairing Code detected: <span className="font-mono">{pairingRequest.code}</span>
             </div>
           )}
 
           <label className="block">
-            <span className="text-sm font-medium text-zinc-200">Pairing Code</span>
+            <span className="text-sm font-medium text-foreground">Pairing Code</span>
             <input
               value={pairingCode}
               onChange={(event) => setPairingCode(event.target.value.toUpperCase())}
               disabled={!config?.enabled || pairingApproved}
               placeholder="STNL5CC2"
-              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500 disabled:opacity-50"
+              className="cp-input mt-2 disabled:opacity-50"
             />
           </label>
 
@@ -344,14 +344,14 @@ export function ChannelsPage(): React.ReactElement {
             <button
               onClick={() => void handleApprovePairing()}
               disabled={!config?.enabled || approving || pairingApproved}
-              className="px-4 py-2.5 text-sm bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-100 rounded-xl transition-colors"
+              className="cp-btn cp-btn-muted px-4 py-2.5 text-sm"
             >
               {approving ? 'Approving...' : pairingApproved ? 'Feishu Ready' : 'Approve Pairing Code'}
             </button>
             <button
               onClick={() => void loadLatestPairing()}
               disabled={!config?.enabled || approving}
-              className="px-4 py-2.5 text-sm bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 rounded-xl border border-zinc-800 transition-colors"
+              className="cp-btn cp-btn-muted px-4 py-2.5 text-sm text-muted-foreground"
             >
               Refresh
             </button>

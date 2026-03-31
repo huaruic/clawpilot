@@ -108,28 +108,4 @@ contextBridge.exposeInMainWorld('clawpilot', {
     exportBundle: (params: { outputPath: string }): Promise<void> =>
       ipcRenderer.invoke('diagnostics:exportBundle', params),
   },
-
-  // ── Logs ─────────────────────────────────────────────────────────────
-  logs: {
-    list: (): Promise<unknown[]> => ipcRenderer.invoke('logs:list'),
-    readFile: (params: { filename: string; limit?: number; offset?: number }): Promise<string> =>
-      ipcRenderer.invoke('logs:readFile', params),
-    parse: (params: { filename: string; limit?: number; level?: 'debug' | 'info' | 'warn' | 'error' }): Promise<unknown[]> =>
-      ipcRenderer.invoke('logs:parse', params),
-    search: (params: {
-      query: string
-      files?: string[]
-      level?: 'debug' | 'info' | 'warn' | 'error'
-      limit?: number
-    }): Promise<unknown[]> => ipcRenderer.invoke('logs:search', params),
-    recent: (params: { limit?: number; level?: 'debug' | 'info' | 'warn' | 'error' }): Promise<unknown[]> =>
-      ipcRenderer.invoke('logs:recent', params),
-    clean: (params: { keepDays?: number; keepCount?: number }): Promise<number> =>
-      ipcRenderer.invoke('logs:clean', params),
-    export: (params: {
-      outputPath: string
-      files?: string[]
-      level?: 'debug' | 'info' | 'warn' | 'error'
-    }): Promise<void> => ipcRenderer.invoke('logs:export', params),
-  },
 })

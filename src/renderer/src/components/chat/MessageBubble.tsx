@@ -18,18 +18,18 @@ export function MessageBubble({ message }: Props): React.ReactElement {
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-xs text-white shrink-0 mt-1">
+        <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0 mt-1">
           AI
         </div>
       )}
 
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+        className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm border ${
           isUser
-            ? 'bg-violet-600 text-white rounded-tr-sm'
+            ? 'bg-primary text-primary-foreground border-primary/30 rounded-tr-sm'
             : isError
-            ? 'bg-red-950 text-red-300 border border-red-800 rounded-tl-sm'
-            : 'bg-zinc-800 text-zinc-100 rounded-tl-sm'
+            ? 'bg-danger/10 text-danger border-danger/30 rounded-tl-sm'
+            : 'bg-surface-2 text-foreground border-border rounded-tl-sm'
         }`}
       >
         {isUser || isError ? (
@@ -75,12 +75,12 @@ export function MessageBubble({ message }: Props): React.ReactElement {
           </div>
         )}
         {isStreaming && (
-          <span className="inline-block w-1.5 h-4 bg-violet-400 ml-0.5 animate-pulse rounded-sm" />
+          <span className="inline-block w-1.5 h-4 bg-primary/70 ml-0.5 animate-pulse rounded-sm" />
         )}
       </div>
 
       {isUser && (
-        <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-xs text-zinc-300 shrink-0 mt-1">
+        <div className="w-7 h-7 rounded-full bg-surface-2 border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0 mt-1">
           U
         </div>
       )}

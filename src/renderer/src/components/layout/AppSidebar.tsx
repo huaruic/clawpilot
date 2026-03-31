@@ -2,6 +2,16 @@ import React from 'react'
 import { useRuntimeStore } from '../../stores/runtimeStore'
 import type { RuntimeStatus } from '../../api/ipc'
 import { useI18n } from '../../i18n/I18nProvider'
+import {
+  IconBolt,
+  IconChannels,
+  IconChat,
+  IconKey,
+  IconMemory,
+  IconPulse,
+  IconSettings,
+  IconStatus,
+} from '../icons'
 
 export type Page =
   | 'status'
@@ -10,7 +20,6 @@ export type Page =
   | 'providers'
   | 'skills'
   | 'memory'
-  | 'logs'
   | 'diagnostics'
   | 'settings'
 
@@ -20,23 +29,22 @@ interface Props {
 }
 
 const STATUS_COLOR: Record<RuntimeStatus, string> = {
-  STOPPED: 'bg-zinc-500',
-  STARTING: 'bg-yellow-500 animate-pulse',
-  RUNNING: 'bg-green-500',
-  ERROR: 'bg-red-500',
-  UPDATING: 'bg-blue-500 animate-pulse',
+  STOPPED: 'bg-muted-foreground',
+  STARTING: 'bg-warning animate-pulse',
+  RUNNING: 'bg-success',
+  ERROR: 'bg-danger',
+  UPDATING: 'bg-primary animate-pulse',
 }
 
-const NAV_ITEMS: Array<{ page: Page; labelKey: string; icon: string }> = [
-  { page: 'status', labelKey: 'nav.status', icon: '◉' },
-  { page: 'chat', labelKey: 'nav.chat', icon: '💬' },
-  { page: 'channels', labelKey: 'nav.channels', icon: '📨' },
-  { page: 'providers', labelKey: 'nav.providers', icon: '🔑' },
-  { page: 'skills', labelKey: 'nav.skills', icon: '⚡' },
-  { page: 'memory', labelKey: 'nav.memory', icon: '🧠' },
-  { page: 'logs', labelKey: 'nav.logs', icon: '📋' },
-  { page: 'diagnostics', labelKey: 'nav.diagnostics', icon: '🩺' },
-  { page: 'settings', labelKey: 'nav.settings', icon: '⚙' },
+const NAV_ITEMS: Array<{ page: Page; labelKey: string; icon: React.ReactElement }> = [
+  { page: 'status', labelKey: 'nav.status', icon: <IconStatus /> },
+  { page: 'chat', labelKey: 'nav.chat', icon: <IconChat /> },
+  { page: 'channels', labelKey: 'nav.channels', icon: <IconChannels /> },
+  { page: 'providers', labelKey: 'nav.providers', icon: <IconKey /> },
+  { page: 'skills', labelKey: 'nav.skills', icon: <IconBolt /> },
+  { page: 'memory', labelKey: 'nav.memory', icon: <IconMemory /> },
+  { page: 'diagnostics', labelKey: 'nav.diagnostics', icon: <IconPulse /> },
+  { page: 'settings', labelKey: 'nav.settings', icon: <IconSettings /> },
 ]
 
 export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactElement {
@@ -44,17 +52,17 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
   const { t } = useI18n()
 
   return (
-    <aside className="w-52 flex flex-col h-full bg-zinc-950 border-r border-zinc-800 select-none shrink-0">
+    <aside className="w-56 flex flex-col h-full bg-surface border-r border-border select-none shrink-0">
       {/* App header */}
-      <div className="px-4 py-4 pt-8 border-b border-zinc-800">
+      <div className="px-4 py-4 pt-8 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-white">ClawPilot</span>
+          <span className="text-base font-semibold text-foreground tracking-tight">ClawPilot</span>
           <span
             className={`w-2 h-2 rounded-full ${STATUS_COLOR[snapshot.status]}`}
             title={snapshot.status}
           />
         </div>
-        <p className="text-xs text-zinc-500 mt-0.5">{snapshot.status}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 font-mono">{snapshot.status}</p>
       </div>
 
       {/* Navigation */}
@@ -63,14 +71,15 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
           <button
             key={page}
             onClick={() => onNavigate(page)}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left ${
+            aria-current={currentPage === page ? 'page' : undefined}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left rounded-xl mx-2 ${
               currentPage === page
-                ? 'bg-zinc-800 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-            }`}
+                ? 'bg-surface-2 text-foreground border border-border/60'
+                : 'text-muted-foreground hover:text-foreground hover:bg-surface-2/60'
+            } focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
           >
-            <span className="w-4 text-center">{icon}</span>
-            {t(labelKey)}
+            <span className="w-4 text-center shrink-0 text-current">{icon}</span>
+            <span className="truncate">{t(labelKey)}</span>
           </button>
         ))}
       </nav>

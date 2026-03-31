@@ -148,46 +148,46 @@ export function ChatPage(): React.ReactElement {
 
   return (
     <div className="flex h-full">
-      <aside className="w-80 shrink-0 border-r border-zinc-800 bg-zinc-950/70 flex flex-col">
-        <div className="px-5 py-4 border-b border-zinc-800">
+      <aside className="w-80 shrink-0 border-r border-border bg-surface flex flex-col">
+        <div className="px-5 py-4 border-b border-border">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-sm font-medium text-zinc-200">Chat</h1>
-              <p className="text-xs text-zinc-500 mt-1">
+              <h1 className="text-sm font-medium text-foreground">Chat</h1>
+              <p className="text-xs text-muted-foreground mt-1">
                 ClawPilot chat client on top of the local OpenClaw runtime
               </p>
             </div>
             <button
               onClick={handleNewSession}
-              className="px-3 py-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors"
+              className="cp-btn cp-btn-primary px-3 py-1.5 text-xs"
             >
               New Session
             </button>
           </div>
         </div>
 
-        <div className="px-5 py-3 border-b border-zinc-800 text-xs text-zinc-500 space-y-1">
+        <div className="px-5 py-3 border-b border-border text-xs text-muted-foreground space-y-1">
           <p>Workspace</p>
-          <p className="font-mono text-zinc-400 break-all">{snapshot.setup.workspaceRoot}</p>
+          <p className="font-mono text-foreground/80 break-all">{snapshot.setup.workspaceRoot}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {sessionsLoading && sessions.length === 0 && (
-            <p className="text-sm text-zinc-500 px-2 py-4">Loading sessions…</p>
+            <p className="text-sm text-muted-foreground px-2 py-4">Loading sessions…</p>
           )}
 
           {sessions.map((session) => (
             <button
               key={session.key}
               onClick={() => setActiveSession(session.key)}
-              className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
+              className={`w-full rounded-2xl border px-3 py-3 text-left transition-colors ${
                 activeSession === session.key
-                  ? 'border-violet-500 bg-violet-950/40'
-                  : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-surface-2 hover:bg-surface-2/80'
               }`}
             >
-              <p className="text-sm font-medium text-zinc-100 truncate">{session.title}</p>
-              <p className="text-xs text-zinc-500 mt-1 line-clamp-2 min-h-8">
+              <p className="text-sm font-medium text-foreground truncate">{session.title}</p>
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 min-h-8">
                 {session.preview || session.key}
               </p>
             </button>
@@ -196,14 +196,14 @@ export function ChatPage(): React.ReactElement {
       </aside>
 
       <section className="flex-1 min-w-0 flex flex-col">
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-4">
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-medium text-zinc-200">{activeSessionLabel}</h2>
-            <p className="text-xs text-zinc-500 mt-1 font-mono">{activeSession}</p>
+            <h2 className="text-sm font-medium text-foreground">{activeSessionLabel}</h2>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">{activeSession}</p>
           </div>
           <button
             onClick={() => setRefreshNonce((value) => value + 1)}
-            className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors"
+            className="cp-btn cp-btn-muted px-3 py-1.5 text-xs"
           >
             Refresh
           </button>
@@ -211,12 +211,12 @@ export function ChatPage(): React.ReactElement {
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {historyLoading && activeMessages.length === 0 ? (
-            <p className="text-sm text-zinc-500">Loading history…</p>
+            <p className="text-sm text-muted-foreground">Loading history…</p>
           ) : activeMessages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="max-w-lg text-center space-y-3">
-                <p className="text-zinc-200 text-base font-medium">No messages yet</p>
-                <p className="text-sm text-zinc-500">
+                <p className="text-foreground text-base font-medium">No messages yet</p>
+                <p className="text-sm text-muted-foreground">
                   Start a new conversation. Messages are sent through the local OpenClaw gateway and use the currently selected default model.
                 </p>
               </div>
@@ -231,9 +231,9 @@ export function ChatPage(): React.ReactElement {
           )}
         </div>
 
-        <div className="border-t border-zinc-800 px-6 py-4 space-y-3">
+        <div className="border-t border-border px-6 py-4 space-y-3">
           {sendError && (
-            <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+            <div className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {sendError}
             </div>
           )}
@@ -248,19 +248,19 @@ export function ChatPage(): React.ReactElement {
                 }
               }}
               placeholder="Send a message to OpenClaw…"
-              className="flex-1 min-h-28 resize-none rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500"
+              className="cp-input flex-1 min-h-28 resize-none"
             />
             <div className="w-28 shrink-0 flex flex-col gap-2">
               <button
                 onClick={() => void handleSend()}
                 disabled={!input.trim() || isStreaming}
-                className="px-4 py-3 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl transition-colors"
+                className="cp-btn cp-btn-primary px-4 py-3 text-sm"
               >
                 {isStreaming ? 'Streaming…' : 'Send'}
               </button>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-500">
+              <div className="rounded-2xl border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
                 <p>Model</p>
-                <p className="mt-1 text-zinc-300 font-mono break-words">
+                <p className="mt-1 text-foreground/80 font-mono break-words">
                   {snapshot.setup.hasDefaultModel ? 'Default from Providers' : 'Not set'}
                 </p>
               </div>
@@ -335,9 +335,9 @@ function CenteredState({
   return (
     <div className="flex items-center justify-center h-full px-6">
       <div className="max-w-xl text-center space-y-3">
-        <p className="text-zinc-200 text-base font-medium">{title}</p>
-        <p className="text-zinc-500 text-sm">{body}</p>
-        {footer && <p className="text-zinc-600 text-xs font-mono break-all">{footer}</p>}
+        <p className="text-foreground text-base font-medium">{title}</p>
+        <p className="text-muted-foreground text-sm">{body}</p>
+        {footer && <p className="text-muted-foreground text-xs font-mono break-all">{footer}</p>}
       </div>
     </div>
   )
