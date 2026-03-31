@@ -11,6 +11,7 @@ export type Page =
   | 'skills'
   | 'memory'
   | 'logs'
+  | 'usage'
   | 'diagnostics'
   | 'settings'
 
@@ -35,6 +36,7 @@ const NAV_ITEMS: Array<{ page: Page; labelKey: string; icon: string }> = [
   { page: 'skills', labelKey: 'nav.skills', icon: '⚡' },
   { page: 'memory', labelKey: 'nav.memory', icon: '🧠' },
   { page: 'logs', labelKey: 'nav.logs', icon: '📋' },
+  { page: 'usage', labelKey: 'nav.usage', icon: '💳' },
   { page: 'diagnostics', labelKey: 'nav.diagnostics', icon: '🩺' },
   { page: 'settings', labelKey: 'nav.settings', icon: '⚙' },
 ]

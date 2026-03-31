@@ -97,6 +97,60 @@ export interface LogFile {
   mtime: number
 }
 
+export interface SessionUsageSummary {
+  agentId: string
+  sessionId: string
+  sessionKey?: string
+  model?: string
+  startedAt?: number
+  updatedAt: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  costCny: number
+  entries: number
+}
+
+export interface ModelUsageSummary {
+  model: string
+  sessionCount: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  costCny: number
+  lastUpdatedAt: number
+}
+
+export interface MessageUsageEntry {
+  agentId: string
+  sessionId: string
+  sessionKey?: string
+  messageId?: string
+  role?: string
+  model?: string
+  timestamp: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  cacheReadTokens: number
+  costCny: number
+  textPreview?: string
+}
+
+export interface MessageUsagePage {
+  total: number
+  items: MessageUsageEntry[]
+}
+
+export interface UsageBreakdownRow {
+  key: string
+  label: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  totalTokens: number
+}
+
 export interface FeishuConfigInfo {
   enabled: boolean
   connectionMode: 'websocket' | 'webhook'
@@ -154,6 +208,9 @@ export interface ClawPilotAPI {
     getSettings: () => Promise<AppSettings>
     updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
     getSystemLocale: () => Promise<string>
+    getConfigDir: () => Promise<string>
+    openConfigDir: () => Promise<{ ok: boolean }>
+    migrateLegacyOpenClaw: () => Promise<{ ok: boolean; message: string; copiedConfig: boolean; copiedSkills: number }>
     showSaveDialog: (params?: {
       title?: string
       defaultPath?: string
@@ -244,6 +301,13 @@ export interface ClawPilotAPI {
       files?: string[]
       level?: LogEntry['level']
     }) => Promise<void>
+  }
+  usage: {
+    listSessions: (params?: { agentId?: string; limit?: number; since?: number; until?: number }) => Promise<SessionUsageSummary[]>
+    aggregateByModel: (params?: { agentId?: string; since?: number; until?: number }) => Promise<ModelUsageSummary[]>
+    listMessages: (params?: { agentId?: string; limit?: number; offset?: number; since?: number; until?: number }) => Promise<MessageUsagePage>
+    breakdownByModel: (params?: { agentId?: string; since?: number; until?: number }) => Promise<UsageBreakdownRow[]>
+    breakdownByDay: (params?: { agentId?: string; since?: number; until?: number }) => Promise<UsageBreakdownRow[]>
   }
 }
 

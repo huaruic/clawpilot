@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('clawpilot', {
     updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke('app:updateSettings', { patch }),
     getSystemLocale: (): Promise<string> => ipcRenderer.invoke('app:getSystemLocale'),
+    getConfigDir: (): Promise<string> => ipcRenderer.invoke('app:getConfigDir'),
+    openConfigDir: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('app:openConfigDir'),
+    migrateLegacyOpenClaw: (): Promise<{ ok: boolean; message: string; copiedConfig: boolean; copiedSkills: number }> =>
+      ipcRenderer.invoke('app:migrateLegacyOpenClaw'),
     showSaveDialog: (params?: {
       title?: string
       defaultPath?: string
@@ -131,5 +135,18 @@ contextBridge.exposeInMainWorld('clawpilot', {
       files?: string[]
       level?: 'debug' | 'info' | 'warn' | 'error'
     }): Promise<void> => ipcRenderer.invoke('logs:export', params),
+  },
+
+  usage: {
+    listSessions: (params?: { agentId?: string; limit?: number; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:listSessions', params ?? {}),
+    aggregateByModel: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:aggregateByModel', params ?? {}),
+    listMessages: (params?: { agentId?: string; limit?: number; offset?: number; since?: number; until?: number }): Promise<unknown> =>
+      ipcRenderer.invoke('usage:listMessages', params ?? {}),
+    breakdownByModel: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:breakdownByModel', params ?? {}),
+    breakdownByDay: (params?: { agentId?: string; since?: number; until?: number }): Promise<unknown[]> =>
+      ipcRenderer.invoke('usage:breakdownByDay', params ?? {}),
   },
 })
