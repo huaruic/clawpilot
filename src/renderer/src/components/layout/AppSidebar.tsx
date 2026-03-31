@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/I18nProvider'
 
 export type Page =
   | 'status'
+  | 'agents'
   | 'chat'
   | 'channels'
   | 'providers'
@@ -29,6 +30,7 @@ const STATUS_COLOR: Record<RuntimeStatus, string> = {
 
 const NAV_ITEMS: Array<{ page: Page; labelKey: string; icon: string }> = [
   { page: 'status', labelKey: 'nav.status', icon: '◉' },
+  { page: 'agents', labelKey: 'nav.agents', icon: '🧑‍💼' },
   { page: 'chat', labelKey: 'nav.chat', icon: '💬' },
   { page: 'channels', labelKey: 'nav.channels', icon: '📨' },
   { page: 'providers', labelKey: 'nav.providers', icon: '🔑' },

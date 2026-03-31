@@ -2,6 +2,7 @@ export const messages = {
   en: {
     nav: {
       status: 'Status',
+      agents: 'Agents',
       chat: 'Chat',
       channels: 'Channels',
       providers: 'Providers',
@@ -60,6 +61,7 @@ export const messages = {
   'zh-CN': {
     nav: {
       status: '状态',
+      agents: '代理',
       chat: '聊天',
       channels: '渠道',
       providers: '模型提供方',

@@ -101,6 +101,14 @@ export interface SkillsListResult {
   skills: SkillInfo[]
 }
 
+export interface AgentInfo {
+  id: string
+  name: string
+  workspacePath: string
+  defaultModel?: string
+  createdAt?: number
+}
+
 export interface ClawPilotAPI {
   app: {
     start: () => Promise<RuntimeSnapshot>
@@ -111,6 +119,13 @@ export interface ClawPilotAPI {
     getSettings: () => Promise<AppSettings>
     updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
     getSystemLocale: () => Promise<string>
+    openPath: (path: string) => Promise<{ ok: boolean }>
+    showOpenDialog: (params?: {
+      title?: string
+      defaultPath?: string
+      filters?: Array<{ name: string; extensions: string[] }>
+      properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory'>
+    }) => Promise<string | null>
     chooseWorkspaceRoot: () => Promise<string | null>
     setWorkspaceRoot: (workspaceRoot: string) => Promise<RuntimeSnapshot>
     resetWorkspaceRoot: () => Promise<RuntimeSnapshot>
@@ -167,6 +182,12 @@ export interface ClawPilotAPI {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
+  }
+  agents: {
+    list: () => Promise<AgentInfo[]>
+    create: (params: { id: string; name: string; mode: 'inherit' | 'generate'; defaultModel?: string }) => Promise<AgentInfo>
+    delete: (params: { id: string }) => Promise<{ ok: boolean }>
+    updateModel: (params: { id: string; model: string }) => Promise<AgentInfo>
   }
   ollama: {
     status: () => Promise<OllamaStatus>

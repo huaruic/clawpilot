@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('clawpilot', {
     updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke('app:updateSettings', { patch }),
     getSystemLocale: (): Promise<string> => ipcRenderer.invoke('app:getSystemLocale'),
+    openPath: (path: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('app:openPath', { path }),
+    showOpenDialog: (params?: {
+      title?: string
+      defaultPath?: string
+      filters?: Array<{ name: string; extensions: string[] }>
+      properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory'>
+    }): Promise<string | null> => ipcRenderer.invoke('app:showOpenDialog', params ?? {}),
     chooseWorkspaceRoot: (): Promise<string | null> => ipcRenderer.invoke('app:chooseWorkspaceRoot'),
     setWorkspaceRoot: (workspaceRoot: string): Promise<RuntimeSnapshot> =>
       ipcRenderer.invoke('app:setWorkspaceRoot', { workspaceRoot }),
@@ -85,6 +92,16 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('skills:setEnabled', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
+  },
+
+  agents: {
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('agents:list'),
+    create: (params: { id: string; name: string; mode: 'inherit' | 'generate'; defaultModel?: string }): Promise<unknown> =>
+      ipcRenderer.invoke('agents:create', params),
+    delete: (params: { id: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('agents:delete', params),
+    updateModel: (params: { id: string; model: string }): Promise<unknown> =>
+      ipcRenderer.invoke('agents:updateModel', params),
   },
 
   ollama: {

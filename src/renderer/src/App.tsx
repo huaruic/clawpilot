@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { AppSidebar, type Page } from './components/layout/AppSidebar'
 import { StatusPage } from './pages/StatusPage'
+import { AgentsPage } from './pages/AgentsPage'
 import { ChatPage } from './pages/ChatPage'
 import { ChannelsPage } from './pages/ChannelsPage'
 import { ProvidersPage } from './pages/ProvidersPage'
@@ -13,6 +14,7 @@ import { SettingsPage } from './pages/SettingsPage'
 function PageContent({ page }: { page: Page }): React.ReactElement {
   switch (page) {
     case 'status': return <StatusPage />
+    case 'agents': return <AgentsPage />
     case 'chat': return <ChatPage />
     case 'channels': return <ChannelsPage />
     case 'providers': return <ProvidersPage />
