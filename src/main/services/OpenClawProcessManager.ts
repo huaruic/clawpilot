@@ -224,18 +224,18 @@ export class OpenClawProcessManager {
 
       try {
         const res = await fetch(url, { signal: AbortSignal.timeout(500) })
-        if (res.ok) {
-          mainLogger.info(`[ProcessManager] Gateway ready (attempt ${i + 1})`)
-          this.state.transition('RUNNING', {
-            pid: this.child?.pid,
-            startedAt: Date.now(),
-            port: GATEWAY_PORT,
-          })
-          this.state.setHealth('ok', Date.now())
-          return
-        }
+        // Accept any HTTP response (including 500) as "gateway is up and responding"
+        // A 500 means the server is running but may have internal issues — that's still "ready"
+        mainLogger.info(`[ProcessManager] Gateway responding (attempt ${i + 1}, status=${res.status})`)
+        this.state.transition('RUNNING', {
+          pid: this.child?.pid,
+          startedAt: Date.now(),
+          port: GATEWAY_PORT,
+        })
+        this.state.setHealth(res.ok ? 'ok' : 'degraded', Date.now())
+        return
       } catch {
-        // Not ready yet
+        // Connection refused / timeout — not ready yet
       }
 
       await sleep(STARTUP_HEALTH_INTERVAL_MS)
@@ -253,23 +253,20 @@ export class OpenClawProcessManager {
       const url = `http://127.0.0.1:${GATEWAY_PORT}/health`
       try {
         const res = await fetch(url, { signal: AbortSignal.timeout(800) })
-        if (res.ok) {
-          this.healthFailures = 0
-          this.state.setHealth('ok', Date.now())
-          return
-        }
-      } catch {
-        // ignore
-      }
-
-      this.healthFailures += 1
-      this.state.setHealth('degraded', Date.now())
-
-      if (this.healthFailures >= HEALTH_FAILURE_THRESHOLD) {
-        mainLogger.warn('[ProcessManager] Health check failed, triggering restart')
-        this.state.setFailure('health_check_failed', 'Gateway health check failed')
-        this.scheduleRestart('health_check_failed')
+        // Any HTTP response means the gateway is alive
         this.healthFailures = 0
+        this.state.setHealth(res.ok ? 'ok' : 'degraded', Date.now())
+      } catch {
+        // Connection failed — gateway may be down
+        this.healthFailures += 1
+        this.state.setHealth('degraded', Date.now())
+
+        if (this.healthFailures >= HEALTH_FAILURE_THRESHOLD) {
+          mainLogger.warn('[ProcessManager] Health check failed (connection refused), triggering restart')
+          this.state.setFailure('health_check_failed', 'Gateway health check failed')
+          this.scheduleRestart('health_check_failed')
+          this.healthFailures = 0
+        }
       }
     }, HEALTH_MONITOR_INTERVAL_MS)
   }

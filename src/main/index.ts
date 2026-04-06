@@ -7,6 +7,10 @@ import { registerAllIpc } from './ipc/index'
 import { registerChatEventForwarding } from './ipc/chat.ipc'
 import { mainLogger } from './utils/logger'
 import { ensureOpenClawBaseConfig, inspectOpenClawSetup, waitForGatewayToken } from './services/OpenClawConfigWriter'
+import { syncAllProvidersToRuntime, syncRoutingProfilesAfterProviderChange } from './services/ProviderRuntimeSync'
+import { ensureAllChannelPlugins } from './services/ChannelConfigService'
+import { deviceOAuthManager } from './services/DeviceOAuthManager'
+import { browserOAuthManager } from './services/BrowserOAuthManager'
 
 // Keep dev and packaged builds on the same userData root.
 app.setName('ClawPilot')
@@ -70,8 +74,23 @@ if (!gotSingleInstanceLock) {
 app.whenReady().then(async () => {
   mainLogger.info('App ready')
   await ensureOpenClawBaseConfig()
+
+  // Sync provider accounts from electron-store to openclaw.json on startup.
+  // Without this, models.providers can be empty after a restart, leaving the
+  // gateway with no LLM to generate responses for channel messages.
+  try {
+    await syncAllProvidersToRuntime()
+    await syncRoutingProfilesAfterProviderChange()
+    await ensureAllChannelPlugins()
+    mainLogger.info('Provider, routing, and channel plugins synced on startup')
+  } catch (err) {
+    mainLogger.warn('Failed to sync on startup:', err)
+  }
+
   await refreshSetup()
-  createWindow()
+  const win = createWindow()
+  deviceOAuthManager.setWindow(win)
+  browserOAuthManager.setWindow(win)
 
   registerAllIpc({
     processManager,
@@ -116,10 +135,14 @@ app.whenReady().then(async () => {
     }
   })
 
-  mainLogger.info('Auto-starting OpenClaw...')
-  processManager.start().catch((err) => {
-    mainLogger.error('Auto-start failed:', err.message)
-  })
+  if (state.snapshot.setup.hasProvider && state.snapshot.setup.hasDefaultModel) {
+    mainLogger.info('Auto-starting OpenClaw...')
+    processManager.start().catch((err) => {
+      mainLogger.error('Auto-start failed:', err.message)
+    })
+  } else {
+    mainLogger.info('Skipping auto-start: no provider or default model configured')
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

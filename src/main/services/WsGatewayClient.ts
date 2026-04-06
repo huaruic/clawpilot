@@ -132,6 +132,7 @@ export class WsGatewayClient {
         platform: process.platform,
         mode: CLIENT_MODE,
       },
+      caps: ['tool-events'],
       role: ROLE,
       scopes: SCOPES,
       ...(token ? { auth: { token } } : {}),

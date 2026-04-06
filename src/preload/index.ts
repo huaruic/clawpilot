@@ -35,12 +35,21 @@ contextBridge.exposeInMainWorld('clawpilot', {
 
   // ── Chat ─────────────────────────────────────────────────────────
   chat: {
-    send: (params: { sessionKey: string; message: string }): Promise<unknown> =>
-      ipcRenderer.invoke('chat:send', params),
+    send: (params: {
+      sessionKey: string
+      message: string
+      attachments?: Array<{ content: string; mimeType: string; fileName: string }>
+    }): Promise<unknown> => ipcRenderer.invoke('chat:send', params),
     history: (params: { sessionKey: string; limit?: number }): Promise<unknown> =>
       ipcRenderer.invoke('chat:history', params),
     sessions: (): Promise<unknown> =>
       ipcRenderer.invoke('chat:sessions'),
+    abort: (params: { sessionKey: string; runId?: string }): Promise<unknown> =>
+      ipcRenderer.invoke('chat:abort', params),
+    deleteSession: (params: { sessionKey: string }): Promise<unknown> =>
+      ipcRenderer.invoke('chat:deleteSession', params),
+    agents: (): Promise<unknown> =>
+      ipcRenderer.invoke('chat:agents'),
     onChunk: (cb: (chunk: unknown) => void): (() => void) => {
       const handler = (_: Electron.IpcRendererEvent, chunk: unknown): void => cb(chunk)
       ipcRenderer.on('chat:chunk', handler)
@@ -48,8 +57,64 @@ contextBridge.exposeInMainWorld('clawpilot', {
     },
   },
 
-  // ── Providers ────────────────────────────────────────────────────
+  // ── File Operations ─────────────────────────────────────────────
+  file: {
+    readAsBase64: (filePath: string): Promise<{
+      content: string
+      mimeType: string
+      fileName: string
+      fileSize: number
+    }> => ipcRenderer.invoke('file:readAsBase64', filePath),
+  },
+
+  // ── Providers (new account-based API) ────────────────────────────
   provider: {
+    // New account-based API
+    listVendors: (): Promise<unknown[]> =>
+      ipcRenderer.invoke('provider:listVendors'),
+    listAccounts: (): Promise<unknown[]> =>
+      ipcRenderer.invoke('provider:listAccounts'),
+    createAccount: (params: { account: unknown; apiKey?: string }): Promise<unknown> =>
+      ipcRenderer.invoke('provider:createAccount', params),
+    updateAccount: (params: { accountId: string; updates: unknown; apiKey?: string }): Promise<unknown> =>
+      ipcRenderer.invoke('provider:updateAccount', params),
+    deleteAccount: (params: { accountId: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('provider:deleteAccount', params),
+    setDefaultAccount: (params: { accountId: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('provider:setDefaultAccount', params),
+    getDefaultAccount: (): Promise<string | null> =>
+      ipcRenderer.invoke('provider:getDefaultAccount'),
+    validate: (params: {
+      providerType: string
+      apiKey: string
+      baseUrl?: string
+      apiProtocol?: string
+    }): Promise<unknown> =>
+      ipcRenderer.invoke('provider:validate', params),
+    getAccountKey: (params: { accountId: string }): Promise<string> =>
+      ipcRenderer.invoke('provider:getAccountKey', params),
+    hasAccountKey: (params: { accountId: string }): Promise<boolean> =>
+      ipcRenderer.invoke('provider:hasAccountKey', params),
+    oauthStart: (params: {
+      provider: string
+      region?: 'global' | 'cn'
+      accountId?: string
+      label?: string
+    }): Promise<unknown> =>
+      ipcRenderer.invoke('provider:oauthStart', params),
+    oauthCancel: (): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('provider:oauthCancel'),
+    onOAuthEvent: (cb: (event: string, data: unknown) => void): (() => void) => {
+      const events = ['oauth:start', 'oauth:code', 'oauth:success', 'oauth:error'] as const
+      const handlers = events.map((evt) => {
+        const handler = (_: Electron.IpcRendererEvent, data: unknown): void => cb(evt, data)
+        ipcRenderer.on(evt, handler)
+        return () => ipcRenderer.removeListener(evt, handler)
+      })
+      return () => handlers.forEach((unsub) => unsub())
+    },
+
+    // Legacy API (deprecated)
     list: (): Promise<unknown[]> =>
       ipcRenderer.invoke('provider:list'),
     save: (params: {
@@ -66,6 +131,8 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('provider:getDefault'),
     setDefault: (model: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('provider:setDefault', { model }),
+    getKey: (name: string): Promise<string> =>
+      ipcRenderer.invoke('provider:getKey', { name }),
     test: (params: { baseUrl: string; apiKey: string }): Promise<{
       ok: boolean
       status?: number
@@ -75,15 +142,51 @@ contextBridge.exposeInMainWorld('clawpilot', {
   },
 
   channels: {
-    validateFeishuCredentials: (params: { appId: string; appSecret: string }): Promise<unknown> =>
-      ipcRenderer.invoke('channels:feishu:validateCredentials', params),
-    getFeishuConfig: (): Promise<unknown> => ipcRenderer.invoke('channels:feishu:getConfig'),
-    saveFeishuConfig: (params: { appId: string; appSecret: string }): Promise<unknown> =>
-      ipcRenderer.invoke('channels:feishu:saveConfig', params),
-    resetFeishu: (): Promise<unknown> => ipcRenderer.invoke('channels:feishu:reset'),
-    getLatestPairing: (): Promise<unknown> => ipcRenderer.invoke('channels:feishu:getLatestPairing'),
-    approvePairing: (params: { code: string }): Promise<unknown> =>
-      ipcRenderer.invoke('channels:feishu:approvePairing', params),
+    // Generic channel API
+    getConfig: (params: { channelType: string }): Promise<unknown> =>
+      ipcRenderer.invoke('channels:getConfig', params),
+    saveConfig: (params: { channelType: string; values: Record<string, string> }): Promise<unknown> =>
+      ipcRenderer.invoke('channels:saveConfig', params),
+    deleteConfig: (params: { channelType: string }): Promise<unknown> =>
+      ipcRenderer.invoke('channels:deleteConfig', params),
+    validateCredentials: (params: { channelType: string; values: Record<string, string> }): Promise<unknown> =>
+      ipcRenderer.invoke('channels:validateCredentials', params),
+    listConfigured: (): Promise<unknown> =>
+      ipcRenderer.invoke('channels:listConfigured'),
+  },
+
+  // ── Routing (Agent Profiles) ─────────────────────────────────────
+  routing: {
+    listProfiles: (): Promise<unknown> =>
+      ipcRenderer.invoke('routing:listProfiles'),
+    createProfile: (params: {
+      name: string
+      modelRef?: string
+      inheritWorkspace?: boolean
+      channelBindings?: Array<{ channelType: string; accountId: string }>
+    }): Promise<unknown> =>
+      ipcRenderer.invoke('routing:createProfile', params),
+    updateProfile: (params: {
+      id: string
+      name?: string
+      modelRef?: string | null
+    }): Promise<unknown> =>
+      ipcRenderer.invoke('routing:updateProfile', params),
+    deleteProfile: (params: { id: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('routing:deleteProfile', params),
+    getRoute: (params: { channelType: string; accountId: string }): Promise<unknown> =>
+      ipcRenderer.invoke('routing:getRoute', params),
+    setRoute: (params: {
+      channelType: string
+      accountId: string
+      profileId: string
+    }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('routing:setRoute', params),
+    clearRoute: (params: {
+      channelType: string
+      accountId: string
+    }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('routing:clearRoute', params),
   },
 
   skills: {
@@ -92,12 +195,6 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('skills:setEnabled', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
-  },
-
-  ollama: {
-    status: (): Promise<unknown> => ipcRenderer.invoke('ollama:status'),
-    pullRecommended: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('ollama:pullRecommended'),
-    openInstallPage: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('ollama:openInstallPage'),
   },
 
   // ── Diagnostics ──────────────────────────────────────────────────────
