@@ -105,6 +105,35 @@ export function IconPulse(props: IconProps): React.ReactElement {
   )
 }
 
+export function IconDashboard(props: IconProps): React.ReactElement {
+  return (
+    <BaseIcon {...props}>
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </BaseIcon>
+  )
+}
+
+export function IconTrendUp(props: IconProps): React.ReactElement {
+  return (
+    <BaseIcon {...props}>
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </BaseIcon>
+  )
+}
+
+export function IconTrendDown(props: IconProps): React.ReactElement {
+  return (
+    <BaseIcon {...props}>
+      <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
+      <polyline points="16 17 22 17 22 11" />
+    </BaseIcon>
+  )
+}
+
 export function IconSettings(props: IconProps): React.ReactElement {
   return (
     <BaseIcon {...props}>
