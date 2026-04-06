@@ -1,10 +1,9 @@
 {
   "openclaw": {
     "package": "openclaw",
-    "version": "2026.3.23-2"
+    "version": "2026.3.31"
   },
   "node": {
     "version": "22.19.0"
   }
 }
-
