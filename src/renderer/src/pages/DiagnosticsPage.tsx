@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react'
+import { Play, Wrench, CheckCircle2, AlertTriangle, XCircle, FolderOpen, Copy } from 'lucide-react'
 import type { DiagnosticIssue, DiagnosticReport } from '../api/ipc'
 import { useI18n } from '../i18n/I18nProvider'
+import { toast } from 'sonner'
 
-type SeverityFilter = 'all' | 'error' | 'warning' | 'info'
+type LogTab = 'issues' | 'system'
 
 const CATEGORY_KEY: Record<DiagnosticIssue['category'], string> = {
   runtime: 'app.diagnostics.categoryRuntime',
@@ -13,39 +15,23 @@ const CATEGORY_KEY: Record<DiagnosticIssue['category'], string> = {
   workspace: 'app.diagnostics.categoryWorkspace',
 }
 
-const SEVERITY_STYLE: Record<DiagnosticIssue['severity'], string> = {
-  error: 'text-danger border-danger/30 bg-danger/10',
-  warning: 'text-warning border-warning/30 bg-warning/10',
-  info: 'text-muted-foreground border-border bg-surface-2',
-}
+const STATUS_ICON = { error: XCircle, warning: AlertTriangle, info: CheckCircle2 }
+const STATUS_COLOR = { error: 'text-destructive', warning: 'text-warning', info: 'text-success' }
 
 export function DiagnosticsPage(): React.ReactElement {
-  return (
-    <div className="h-full overflow-y-auto p-8">
-      <DiagnosticsPanel embedded={false} />
-    </div>
-  )
-}
-
-export function DiagnosticsPanel({ embedded }: { embedded: boolean }): React.ReactElement {
   const { t, resolvedLanguage } = useI18n()
   const [report, setReport] = useState<DiagnosticReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [fixingIssue, setFixingIssue] = useState<string | null>(null)
-  const [runError, setRunError] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [filter, setFilter] = useState<SeverityFilter>('all')
+  const [logTab, setLogTab] = useState<LogTab>('issues')
 
   const runDiagnostics = async (): Promise<void> => {
     setLoading(true)
-    setRunError(null)
-    setFeedback(null)
     try {
-      const next = await window.clawpilot.diagnostics.run()
-      setReport(next)
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : String(error))
+      setReport(await window.clawpilot.diagnostics.run())
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
@@ -53,18 +39,16 @@ export function DiagnosticsPanel({ embedded }: { embedded: boolean }): React.Rea
 
   const handleFix = async (issue: DiagnosticIssue): Promise<void> => {
     setFixingIssue(issue.title)
-    setFeedback(null)
     try {
       const result = await window.clawpilot.diagnostics.fix(issue)
-      setFeedback({
-        type: result.success ? 'success' : 'error',
-        text: result.success ? result.message : `${result.message}${result.output ? `: ${result.output}` : ''}`,
-      })
       if (result.success) {
+        toast.success(result.message)
         await runDiagnostics()
+      } else {
+        toast.error(result.message)
       }
-    } catch (error) {
-      setFeedback({ type: 'error', text: error instanceof Error ? error.message : String(error) })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
     } finally {
       setFixingIssue(null)
     }
@@ -73,7 +57,6 @@ export function DiagnosticsPanel({ embedded }: { embedded: boolean }): React.Rea
   const handleExport = async (): Promise<void> => {
     if (!report) return
     setExporting(true)
-    setFeedback(null)
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const outputPath = await window.clawpilot.app.showSaveDialog({
@@ -81,204 +64,154 @@ export function DiagnosticsPanel({ embedded }: { embedded: boolean }): React.Rea
         defaultPath: `clawpilot-diagnostics-${timestamp}.json`,
         filters: [{ name: 'JSON', extensions: ['json'] }],
       })
-      if (!outputPath) return
+      if (!outputPath) { setExporting(false); return }
       await window.clawpilot.diagnostics.exportBundle({ outputPath })
-      setFeedback({ type: 'success', text: `${t('app.diagnostics.exportedTo')} ${outputPath}` })
-    } catch (error) {
-      setFeedback({ type: 'error', text: error instanceof Error ? error.message : String(error) })
+      toast.success(`${t('app.diagnostics.exportedTo')} ${outputPath}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
     } finally {
       setExporting(false)
     }
   }
 
-  const filteredIssues = useMemo(() => {
-    const issues = report?.issues ?? []
-    return filter === 'all' ? issues : issues.filter((issue) => issue.severity === filter)
-  }, [report, filter])
-
-  const categorySummaries = useMemo(() => {
-    const issues = report?.issues ?? []
-    return (Object.keys(CATEGORY_KEY) as Array<DiagnosticIssue['category']>).map((category) => {
-      const bucket = issues.filter((issue) => issue.category === category)
-      const errorCount = bucket.filter((issue) => issue.severity === 'error').length
-      const warningCount = bucket.filter((issue) => issue.severity === 'warning').length
-      const infoCount = bucket.filter((issue) => issue.severity === 'info').length
-      const state = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : infoCount > 0 ? 'info' : 'healthy'
-      return { category, state, count: bucket.length }
-    })
+  const grouped = useMemo(() => {
+    if (!report) return []
+    const cats = Object.keys(CATEGORY_KEY) as Array<DiagnosticIssue['category']>
+    return cats
+      .map((cat) => ({ category: cat, issues: report.issues.filter((i) => i.category === cat) }))
+      .filter((g) => g.issues.length > 0)
   }, [report])
 
-  const overallTone =
-    report?.overallStatus === 'error'
-      ? 'text-danger border-danger/30 bg-danger/10'
-      : report?.overallStatus === 'warning'
-        ? 'text-warning border-warning/30 bg-warning/10'
-        : 'text-success border-success/30 bg-success/10'
   const locale = resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en-US'
 
   return (
-    <section className={embedded ? 'space-y-6' : 'cp-card p-6 space-y-6'}>
-        {!embedded && (
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">{t('app.diagnostics.title')}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t('app.diagnostics.subtitle')}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="cp-btn cp-btn-muted" onClick={() => void runDiagnostics()} disabled={loading}>
-                {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
-              </button>
-              <button className="cp-btn cp-btn-primary" onClick={() => void handleExport()} disabled={!report || exporting}>
-                {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
-              </button>
-            </div>
-          </header>
-        )}
-
-        {embedded && (
-          <div className="flex items-center justify-end gap-2">
-            <button className="cp-btn cp-btn-muted" onClick={() => void runDiagnostics()} disabled={loading}>
-              {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
-            </button>
-            <button className="cp-btn cp-btn-primary" onClick={() => void handleExport()} disabled={!report || exporting}>
-              {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
-            </button>
-          </div>
-        )}
-
-        {feedback && (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm ${
-              feedback.type === 'success'
-                ? 'text-success border-success/30 bg-success/10'
-                : 'text-danger border-danger/30 bg-danger/10'
-            }`}
+    <div className="cp-page max-w-4xl">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">{t('app.diagnostics.title')}</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => void runDiagnostics()}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            {feedback.text}
+            <Play className="h-3 w-3" /> {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
+          </button>
+          <button
+            onClick={() => void handleExport()}
+            disabled={!report || exporting}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            <Wrench className="h-3 w-3" /> {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
+          </button>
+        </div>
+      </div>
+
+      {/* Overall health banner */}
+      {report && (
+        <div className={`flex items-center justify-between rounded-xl border p-4 ${
+          report.overallStatus === 'error' ? 'border-destructive/30 bg-destructive/10' :
+          report.overallStatus === 'warning' ? 'border-warning/30 bg-warning/10' :
+          'border-success/30 bg-success/10'
+        }`}>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('app.diagnostics.overallHealth')}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">
+              {report.overallStatus === 'healthy' ? t('app.diagnostics.healthy') : report.overallStatus}
+            </p>
           </div>
-        )}
+          <div className="text-right text-xs text-muted-foreground">
+            <p>{report.issues.length} {t('app.diagnostics.issuesLabel')}</p>
+            <p>{new Date(report.timestamp).toLocaleString(locale)}</p>
+          </div>
+        </div>
+      )}
 
-        {runError && <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{runError}</div>}
-
-        {report && (
-          <>
-            <div className={`rounded-2xl border px-4 py-4 ${overallTone}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-wide">{t('app.diagnostics.overallHealth')}</p>
-                  <p className="mt-1 text-lg font-semibold">{toStateLabel(report.overallStatus, t)}</p>
-                </div>
-                <div className="text-right text-sm">
-                  <p>{report.issues.length} {t('app.diagnostics.issuesLabel')}</p>
-                  <p className="text-muted-foreground">{new Date(report.timestamp).toLocaleString(locale)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {categorySummaries.map((item) => (
-                <div key={item.category} className="rounded-xl border border-border bg-surface-2 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{t(CATEGORY_KEY[item.category])}</p>
-                    <span className="cp-badge">{item.count}</span>
+      {/* Grouped checks */}
+      {grouped.map((group) => (
+        <div key={group.category} className="rounded-xl border border-border bg-card p-4">
+          <h3 className="mb-3 text-sm font-medium text-foreground">{t(CATEGORY_KEY[group.category])}</h3>
+          <div className="space-y-2">
+            {group.issues.map((issue, i) => {
+              const Icon = STATUS_ICON[issue.severity]
+              return (
+                <div key={i} className="flex items-center justify-between py-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`h-4 w-4 ${STATUS_COLOR[issue.severity]}`} />
+                    <span className="text-xs text-foreground">{issue.title}</span>
+                    <span className="text-xs text-muted-foreground">{issue.description}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{toStateLabel(item.state, t)}</p>
+                  {issue.fixable && (
+                    <button
+                      onClick={() => void handleFix(issue)}
+                      disabled={fixingIssue !== null}
+                      className="rounded border border-primary/30 px-2 py-0.5 text-[10px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      {fixingIssue === issue.title ? t('app.diagnostics.fixing') : `${t('app.diagnostics.autoFix')} →`}
+                    </button>
+                  )}
                 </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      {!report && !loading && (
+        <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
+          {t('app.diagnostics.runPrompt')}
+        </div>
+      )}
+
+      {/* System info / log area */}
+      {report && (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2">
+            <div className="flex gap-1">
+              {(['issues', 'system'] as LogTab[]).map((tb) => (
+                <button
+                  key={tb}
+                  onClick={() => setLogTab(tb)}
+                  className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                    logTab === tb ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {tb === 'issues' ? t('app.diagnostics.issuesTitle') : t('app.diagnostics.systemInfo')}
+                </button>
               ))}
             </div>
-
-            <div className="rounded-2xl border border-border bg-surface-2 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold">{t('app.diagnostics.issuesTitle')}</h2>
-                <div className="flex items-center gap-2">
-                  {(['all', 'error', 'warning', 'info'] as SeverityFilter[]).map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setFilter(option)}
-                      className={`cp-btn px-3 py-1.5 text-xs ${filter === option ? 'cp-btn-primary' : 'cp-btn-muted'}`}
-                    >
-                      {option === 'all'
-                        ? t('app.diagnostics.filterAll')
-                        : option === 'error'
-                          ? t('app.diagnostics.filterError')
-                          : option === 'warning'
-                            ? t('app.diagnostics.filterWarning')
-                            : t('app.diagnostics.filterInfo')}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex gap-1">
+              <button className="p-1.5 text-muted-foreground hover:text-foreground" title="Copy">
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              <button className="p-1.5 text-muted-foreground hover:text-foreground" title="Open">
+                <FolderOpen className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="max-h-60 overflow-y-auto p-4">
+            {logTab === 'system' ? (
+              <div className="space-y-1 font-mono text-[11px] leading-5 text-muted-foreground">
+                <div>{t('app.diagnostics.platform')}: {report.systemInfo.platform}</div>
+                <div>{t('app.diagnostics.node')}: {report.systemInfo.nodeVersion}</div>
+                <div>{t('app.diagnostics.stateDirectory')}: {report.systemInfo.stateDir}</div>
+                {report.systemInfo.openclawVersion && <div>OpenClaw: {report.systemInfo.openclawVersion}</div>}
               </div>
-
-              <div className="space-y-3">
-                {filteredIssues.length === 0 && (
-                  <div className="rounded-xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-                    {loading ? t('app.diagnostics.diagnosticsRunning') : t('app.diagnostics.noIssuesInFilter')}
-                  </div>
-                )}
-                {filteredIssues.map((issue, index) => (
-                  <article key={`${issue.category}-${issue.title}-${index}`} className="rounded-xl border border-border bg-surface px-4 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="cp-badge">{t(CATEGORY_KEY[issue.category])}</span>
-                          <span className={`rounded-full border px-2 py-0.5 text-xs ${SEVERITY_STYLE[issue.severity]}`}>
-                            {toStateLabel(issue.severity, t)}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-semibold">{issue.title}</h3>
-                        <p className="text-sm text-muted-foreground">{issue.description}</p>
-                        {issue.details && (
-                          <details className="text-xs text-muted-foreground">
-                            <summary className="cursor-pointer">{t('app.diagnostics.details')}</summary>
-                            <pre className="mt-2 overflow-x-auto rounded-xl border border-border bg-background p-3">{issue.details}</pre>
-                          </details>
-                        )}
-                      </div>
-                      {issue.fixable && (
-                        <button
-                          className="cp-btn cp-btn-muted whitespace-nowrap"
-                          onClick={() => void handleFix(issue)}
-                          disabled={fixingIssue !== null}
-                        >
-                          {fixingIssue === issue.title ? t('app.diagnostics.fixing') : t('app.diagnostics.autoFix')}
-                        </button>
-                      )}
+            ) : (
+              <div className="space-y-1 font-mono text-[11px] leading-5">
+                {report.issues.length === 0 ? (
+                  <span className="text-success">{t('app.diagnostics.healthy')}</span>
+                ) : (
+                  report.issues.map((issue, i) => (
+                    <div key={i} className={issue.severity === 'error' ? 'text-destructive' : issue.severity === 'warning' ? 'text-warning' : 'text-muted-foreground'}>
+                      [{issue.severity.toUpperCase()}] {issue.category}: {issue.title} — {issue.description}
                     </div>
-                  </article>
-                ))}
+                  ))
+                )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-surface-2 p-4 md:grid-cols-2">
-              <p className="text-sm text-muted-foreground">
-                {t('app.diagnostics.platform')}: <span className="text-foreground">{report.systemInfo.platform}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t('app.diagnostics.node')}: <span className="text-foreground">{report.systemInfo.nodeVersion}</span>
-              </p>
-              <p className="text-sm text-muted-foreground md:col-span-2">
-                {t('app.diagnostics.stateDirectory')}: <span className="font-mono text-xs text-foreground">{report.systemInfo.stateDir}</span>
-              </p>
-              {report.systemInfo.openclawVersion && (
-                <p className="text-sm text-muted-foreground md:col-span-2">
-                  OpenClaw: <span className="text-foreground">{report.systemInfo.openclawVersion}</span>
-                </p>
-              )}
-            </div>
-          </>
-        )}
-      </section>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
-}
-
-function toStateLabel(
-  state: 'healthy' | 'warning' | 'error' | 'info',
-  t: (key: string) => string,
-): string {
-  if (state === 'healthy') return t('app.diagnostics.healthy')
-  if (state === 'warning') return t('app.diagnostics.filterWarning')
-  if (state === 'error') return t('app.diagnostics.filterError')
-  return t('app.diagnostics.filterInfo')
 }

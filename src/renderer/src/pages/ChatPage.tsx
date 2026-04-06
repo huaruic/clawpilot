@@ -1,344 +1,613 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Plus, Paperclip, Globe, Mic, ChevronDown, ArrowUp,
+  AlertTriangle, Loader2, Check,
+  Code2, FileText, Zap, Globe2,
+} from 'lucide-react'
 import { MessageBubble } from '../components/chat/MessageBubble'
-import { useChatStreamSubscription, useSendMessage } from '../hooks/useChatStream'
-import { DEFAULT_SESSION, normalizeHistory, useChatStore } from '../stores/chatStore'
+import { ThinkingIndicator } from '../components/chat/ThinkingIndicator'
+import { useChatStreamSubscription, useAbortRun } from '../hooks/useChatStream'
+import { useChatStore, startSafetyTimeout } from '../stores/chat'
+import { loadHistory, sendMessage as sendMessageRpc } from '../services/chatService'
+import type { ChatMessage } from '../types'
 import { useRuntimeStore } from '../stores/runtimeStore'
+import { useProviderStore } from '../stores/providerStore'
+import { useI18n } from '../i18n/I18nProvider'
+import type { Page } from '../components/layout/AppSidebar'
+import type { ProviderAccount } from '../../../shared/providers/types'
 
-interface SessionSummary {
-  key: string
-  title: string
-  preview: string
-  updatedAt?: number
+/* ── Turn grouping ── */
+
+interface Turn {
+  user: ChatMessage
+  assistant?: ChatMessage
 }
 
-export function ChatPage(): React.ReactElement {
+function groupIntoTurns(messages: ChatMessage[]): Turn[] {
+  const turns: Turn[] = []
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      turns.push({ user: msg })
+    } else if (msg.role === 'assistant' && turns.length > 0) {
+      turns[turns.length - 1].assistant = msg
+    }
+  }
+  return turns
+}
+
+/* ── greeting helper ── */
+
+function useGreeting(): string {
+  const { t } = useI18n()
+  const hour = new Date().getHours()
+  if (hour < 12) return t('app.chat.greetingMorning')
+  if (hour < 18) return t('app.chat.greetingAfternoon')
+  return t('app.chat.greetingEvening')
+}
+
+/* ── quick start cards config ── */
+
+const QUICK_START_ICONS = [Code2, FileText, Zap, Globe2] as const
+const QUICK_START_KEYS = ['Script', 'Analyze', 'Brainstorm', 'Research'] as const
+
+/* ── helpers ── */
+
+function shouldShowThinkingIndicator(
+  messages: ReturnType<typeof useChatStore.getState>['messages'][string]
+): boolean {
+  if (!messages || messages.length === 0) return true
+  const last = messages[messages.length - 1]
+  // Last message is user → still waiting for assistant to start
+  if (last.role === 'user') return true
+  // Last message is assistant with no content, no running tools, and no thinking → thinking
+  if (last.role === 'assistant') {
+    const hasContent = last.content.trim().length > 0
+    const hasToolCalls = (last.toolCalls?.length ?? 0) > 0
+    const hasThinking = (last.thinkingBlocks?.length ?? 0) > 0
+    if (!hasContent && !hasToolCalls && !hasThinking) return true
+  }
+  return false
+}
+
+/* ── Model Selector ── */
+
+function getModelDisplayName(account: ProviderAccount): string {
+  if (account.model) return account.model
+  return account.label
+}
+
+function ModelSelector({
+  accounts,
+  defaultAccountId,
+  onSelect,
+}: {
+  accounts: ProviderAccount[]
+  defaultAccountId: string | null
+  onSelect: (accountId: string) => void
+}): React.ReactElement {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent): void {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  const current = accounts.find((a) => a.id === defaultAccountId)
+  const displayName = current ? getModelDisplayName(current) : 'No Provider'
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-foreground/[0.03]"
+      >
+        <span>{displayName}</span>
+        <ChevronDown className="h-3 w-3" />
+      </button>
+
+      {open && accounts.length > 0 && (
+        <div className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-border bg-card shadow-xl overflow-hidden z-50">
+          <div className="py-1">
+            {accounts.map((account) => {
+              const isActive = account.id === defaultAccountId
+              return (
+                <button
+                  key={account.id}
+                  onClick={() => {
+                    onSelect(account.id)
+                    setOpen(false)
+                  }}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] hover:bg-foreground/[0.05] transition-colors"
+                >
+                  <span className="flex-1 truncate text-foreground">{getModelDisplayName(account)}</span>
+                  {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Input Bar (new design) ── */
+
+function InputBar({
+  value,
+  onChange,
+  onSend,
+  disabled,
+  placeholder,
+  accounts,
+  defaultAccountId,
+  onSelectModel,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  disabled?: boolean
+  placeholder: string
+  accounts: ProviderAccount[]
+  defaultAccountId: string | null
+  onSelectModel: (accountId: string) => void
+}): React.ReactElement {
+  const [isComposing, setIsComposing] = useState(false)
+
+  return (
+    <div className="rounded-2xl border border-border/40 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+      <textarea
+        rows={1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onCompositionStart={() => setIsComposing(true)}
+        onCompositionEnd={() => setIsComposing(false)}
+        onKeyDown={(e) => {
+          if (isComposing) return
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            if (!disabled) onSend()
+          }
+        }}
+        placeholder={placeholder}
+        className="w-full bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/50 resize-none outline-none min-h-[44px] max-h-[160px] px-5 pt-4 pb-1"
+      />
+      <div className="flex items-center justify-between px-3 pb-3">
+        <div className="flex items-center gap-0.5">
+          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+            <Plus className="h-[18px] w-[18px]" />
+          </button>
+          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+            <Paperclip className="h-[18px] w-[18px]" />
+          </button>
+          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+            <Globe className="h-[18px] w-[18px]" />
+          </button>
+          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+            <Mic className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <ModelSelector
+            accounts={accounts}
+            defaultAccountId={defaultAccountId}
+            onSelect={onSelectModel}
+          />
+          <button
+            onClick={onSend}
+            disabled={disabled || !value.trim()}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+              value.trim()
+                ? 'bg-foreground text-card hover:bg-foreground/90'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Quick Start Grid ── */
+
+function QuickStartGrid({ onSelect }: { onSelect: (prompt: string) => void }): React.ReactElement {
+  const { t } = useI18n()
+
+  return (
+    <div className="grid grid-cols-2 gap-3 w-full">
+      {QUICK_START_KEYS.map((key, i) => {
+        const Icon = QUICK_START_ICONS[i]
+        const title = t(`app.chat.quick${key}Title`)
+        const desc = t(`app.chat.quick${key}Desc`)
+        const prompt = t(`app.chat.quick${key}Prompt`)
+
+        return (
+          <button
+            key={key}
+            onClick={() => onSelect(prompt)}
+            className="flex items-start gap-3 p-4 bg-card/70 hover:bg-card/90 border border-border/30 rounded-xl text-left transition-colors"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
+              <Icon className="h-[18px] w-[18px] text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-foreground leading-tight">{title}</div>
+              <div className="text-[13px] text-muted-foreground mt-1 leading-snug">{desc}</div>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── Welcome View (no messages) ── */
+
+function WelcomeView({
+  input,
+  setInput,
+  onSend,
+  accounts,
+  defaultAccountId,
+  onSelectModel,
+  isStreaming,
+}: {
+  input: string
+  setInput: (v: string) => void
+  onSend: () => void
+  accounts: ProviderAccount[]
+  defaultAccountId: string | null
+  onSelectModel: (accountId: string) => void
+  isStreaming: boolean
+}): React.ReactElement {
+  const greeting = useGreeting()
+  const { t } = useI18n()
+
+  return (
+    <div className="flex h-full items-center justify-center px-4">
+      <div className="flex w-full max-w-[640px] flex-col items-center">
+        <h1 className="mb-8 text-[48px] font-semibold leading-tight tracking-tight text-foreground">
+          {greeting}
+        </h1>
+
+        <div className="mb-8 w-full">
+          <InputBar
+            value={input}
+            onChange={setInput}
+            onSend={onSend}
+            disabled={isStreaming}
+            placeholder={t('app.chat.welcomePlaceholder')}
+            accounts={accounts}
+            defaultAccountId={defaultAccountId}
+            onSelectModel={onSelectModel}
+          />
+        </div>
+
+        <div className="w-full">
+          <div className="mb-3 px-1">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {t('app.chat.quickStart')}
+            </span>
+          </div>
+          <QuickStartGrid onSelect={(prompt) => setInput(prompt)} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Chat View (has messages) ── */
+
+function ChatView({
+  messages,
+  input,
+  setInput,
+  onSend,
+  accounts,
+  defaultAccountId,
+  onSelectModel,
+  isStreaming,
+  pendingScrollRef,
+}: {
+  messages: ReturnType<typeof useChatStore.getState>['messages'][string]
+  input: string
+  setInput: (v: string) => void
+  onSend: () => void
+  accounts: ProviderAccount[]
+  defaultAccountId: string | null
+  onSelectModel: (accountId: string) => void
+  isStreaming: boolean
+  pendingScrollRef: React.MutableRefObject<boolean>
+}): React.ReactElement {
+  const { t } = useI18n()
+  const activeMessages = messages ?? []
+  const currentTurnRef = useRef<HTMLDivElement | null>(null)
+  const prevTurnCountRef = useRef(0)
+
+  const turns = groupIntoTurns(activeMessages)
+
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const userScrolledUpRef = useRef(false)
+
+  // Track whether user has scrolled away from bottom
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    function handleScroll(): void {
+      if (!el) return
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+      userScrolledUpRef.current = !atBottom
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Scroll to bottom when a new turn appears after user sends
+  useEffect(() => {
+    if (pendingScrollRef.current && turns.length > prevTurnCountRef.current) {
+      pendingScrollRef.current = false
+      userScrolledUpRef.current = false
+      requestAnimationFrame(() => {
+        const el = scrollContainerRef.current
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    }
+    prevTurnCountRef.current = turns.length
+  }, [turns.length, pendingScrollRef])
+
+  // Auto-scroll to bottom during streaming unless user scrolled up
+  useEffect(() => {
+    if (!isStreaming || userScrolledUpRef.current) return
+    requestAnimationFrame(() => {
+      const el = scrollContainerRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  }, [isStreaming, activeMessages])
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Messages — scroll container */}
+      <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[680px] space-y-4 px-6 py-6">
+            {turns.map((turn, i) => {
+              const isLastTurn = i === turns.length - 1
+              return (
+                <div
+                  key={turn.user.id}
+                  ref={isLastTurn ? currentTurnRef : undefined}
+                  className="space-y-4"
+                >
+                  {/* User message */}
+                  <div className="animate-fade-in">
+                    <MessageBubble message={turn.user} />
+                  </div>
+                  {/* Assistant message */}
+                  {turn.assistant && (
+                    <div className="animate-fade-in">
+                      <MessageBubble message={turn.assistant} />
+                    </div>
+                  )}
+                  {/* Thinking indicator when waiting for first response in last turn */}
+                  {isLastTurn && isStreaming && !turn.assistant && (
+                    <ThinkingIndicator startTime={turn.user.timestamp} />
+                  )}
+                  {isLastTurn && isStreaming && turn.assistant && shouldShowThinkingIndicator(activeMessages) && (
+                    <ThinkingIndicator startTime={turn.assistant.timestamp} />
+                  )}
+                </div>
+              )
+            })}
+        </div>
+      </div>
+
+      {/* Bottom input */}
+      <div className="shrink-0 px-6 pb-4">
+        <div className="mx-auto max-w-[680px]">
+          <InputBar
+            value={input}
+            onChange={setInput}
+            onSend={onSend}
+            disabled={isStreaming}
+            placeholder={t('app.chat.continuePlaceholder')}
+            accounts={accounts}
+            defaultAccountId={defaultAccountId}
+            onSelectModel={onSelectModel}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Setup Banner ── */
+
+function SetupBanner({ onGoToProviders }: { onGoToProviders: () => void }): React.ReactElement {
+  const { t } = useI18n()
+  return (
+    <div className="mx-4 mt-3 flex items-center justify-between gap-4 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+        <div>
+          <p className="text-sm font-medium text-foreground">{t('app.chat.setupBannerTitle')}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('app.chat.setupBannerDesc')}</p>
+        </div>
+      </div>
+      <button
+        onClick={onGoToProviders}
+        className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        {t('app.chat.setupBannerAction')}
+      </button>
+    </div>
+  )
+}
+
+/* ── Starting Banner ── */
+
+function StartingBanner(): React.ReactElement {
+  const { t } = useI18n()
+  return (
+    <div className="mx-4 mt-3 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+      <div>
+        <p className="text-sm font-medium text-foreground">{t('app.chat.startingBannerTitle')}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('app.chat.startingBannerDesc')}</p>
+      </div>
+    </div>
+  )
+}
+
+/* ── Main ChatPage ── */
+
+export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): React.ReactElement {
+  const { t } = useI18n()
   useChatStreamSubscription()
 
   const { snapshot } = useRuntimeStore()
-  const {
-    activeSession,
-    setActiveSession,
-    hydrateSession,
-    messages,
-    streaming,
-  } = useChatStore()
+  const { accounts, defaultAccountId, init: initProviders, setDefault: setDefaultProvider } = useProviderStore()
+  const { activeSession, hydrateSession, messages, streaming, bumpSessionList, newSession } = useChatStore()
 
-  const [sessions, setSessions] = useState<SessionSummary[]>([])
-  const [sessionsLoading, setSessionsLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [input, setInput] = useState('')
   const [sendError, setSendError] = useState<string | null>(null)
-  const [refreshNonce, setRefreshNonce] = useState(0)
-  const endRef = useRef<HTMLDivElement | null>(null)
+  const pendingScrollRef = useRef(false)
 
-  const sendMessage = useSendMessage(activeSession)
+  const abortRun = useAbortRun(activeSession)
+  const setStreamingState = useChatStore((s) => s.setStreaming)
+  const setActiveRun = useChatStore((s) => s.setActiveRun)
+  const addUserMessage = useChatStore((s) => s.addUserMessage)
   const activeMessages = messages[activeSession] ?? []
   const isStreaming = streaming[activeSession] ?? false
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
-  }, [activeMessages.length, isStreaming])
+  // Load provider accounts
+  useEffect(() => { void initProviders() }, [initProviders])
 
-  useEffect(() => {
-    if (snapshot.status !== 'RUNNING') return
+  const enabledAccounts = accounts.filter((a) => a.enabled)
 
-    let cancelled = false
-    setSessionsLoading(true)
+  const handleSelectModel = useCallback(async (accountId: string) => {
+    await setDefaultProvider(accountId)
+  }, [setDefaultProvider])
 
-    window.clawpilot.chat.sessions()
-      .then((raw) => {
-        if (cancelled) return
-        const nextSessions = normalizeSessions(raw)
-        const current = nextSessions.find((entry) => entry.key === activeSession)
-        const fallback = nextSessions[0]?.key ?? activeSession ?? DEFAULT_SESSION
-        const ensured = current ? nextSessions : ensureSession(nextSessions, fallback)
-
-        setSessions(ensured)
-        if (!current && fallback !== activeSession) {
-          setActiveSession(fallback)
-        }
-      })
-      .catch(() => {
-        if (cancelled) return
-        const fallback = activeSession || DEFAULT_SESSION
-        setSessions(ensureSession([], fallback))
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSessionsLoading(false)
-        }
-      })
-
-    return () => { cancelled = true }
-  }, [snapshot.status, snapshot.startedAt, refreshNonce, activeSession, setActiveSession])
-
+  // Load history when active session changes or runtime starts.
+  // IMPORTANT: `messages` must NOT be in the dep array — otherwise every chunk/send
+  // re-triggers a history fetch that overwrites the live streaming state, causing
+  // flickering and loss of real-time data.
   useEffect(() => {
     if (snapshot.status !== 'RUNNING' || !activeSession) return
-
+    // Skip reload if we already have messages for this session (e.g. mid-stream)
+    if ((messages[activeSession]?.length ?? 0) > 0) return
     let cancelled = false
     setHistoryLoading(true)
 
-    window.clawpilot.chat.history({ sessionKey: activeSession, limit: 80 })
-      .then((history) => {
+    loadHistory(activeSession, 100)
+      .then((normalized) => {
         if (cancelled) return
-        const normalized = normalizeHistory(activeSession, history)
-        if (normalized.length > 0 || (messages[activeSession]?.length ?? 0) === 0) {
-          hydrateSession(activeSession, normalized)
-        }
+        hydrateSession(activeSession, normalized)
       })
-      .finally(() => {
-        if (!cancelled) {
-          setHistoryLoading(false)
-        }
-      })
+      .finally(() => { if (!cancelled) setHistoryLoading(false) })
 
     return () => { cancelled = true }
-  }, [activeSession, hydrateSession, messages, snapshot.status, snapshot.startedAt])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession, snapshot.status, snapshot.startedAt])
 
-  const activeSessionLabel = useMemo(() => {
-    return sessions.find((entry) => entry.key === activeSession)?.title ?? activeSession
-  }, [activeSession, sessions])
-
-  if (snapshot.status !== 'RUNNING') {
-    return (
-      <CenteredState
-        title="OpenClaw is not running"
-        body="Start the local runtime from Status before opening a chat session."
-      />
-    )
-  }
-
-  if (!snapshot.setup.hasProvider || !snapshot.setup.hasDefaultModel) {
-    return (
-      <CenteredState
-        title="Model setup required"
-        body="Add a provider and choose a default model on the Providers page before starting a conversation."
-        footer={snapshot.setup.configPath}
-      />
-    )
-  }
+  const needsSetup = !snapshot.setup.hasProvider || !snapshot.setup.hasDefaultModel
+  const isStarting = !needsSetup && (snapshot.status === 'STARTING' || snapshot.status === 'UPDATING')
+  const isReady = snapshot.status === 'RUNNING' && !needsSetup
 
   async function handleSend(): Promise<void> {
     const text = input.trim()
     if (!text || isStreaming) return
-
     setSendError(null)
     setInput('')
+    pendingScrollRef.current = true
+
+    // If current session has no messages, create a new session for this conversation
+    const currentMessages = useChatStore.getState().messages[activeSession] ?? []
+    let targetSession = activeSession
+    if (currentMessages.length === 0) {
+      targetSession = newSession('default')
+    }
+
+    // Optimistic: show user message + session in sidebar immediately
+    addUserMessage(targetSession, text)
+    bumpSessionList()
 
     try {
-      ensureSessionSelected(activeSession)
-      await sendMessage(text)
-      setRefreshNonce((value) => value + 1)
+      const result = await sendMessageRpc({ sessionKey: targetSession, message: text })
+      if (result.runId) {
+        setActiveRun(targetSession, result.runId)
+        const cancelTimeout = startSafetyTimeout(targetSession, result.runId)
+        const unsub = useChatStore.subscribe((state) => {
+          if (!state.streaming[targetSession]) {
+            cancelTimeout()
+            unsub()
+          }
+        })
+      }
+      // Bump again after RPC so Gateway's response (with proper updatedAt) replaces the optimistic entry
+      bumpSessionList()
     } catch (err) {
       setSendError(err instanceof Error ? err.message : String(err))
+      setStreamingState(targetSession, false)
     }
   }
 
-  function ensureSessionSelected(sessionKey: string): void {
-    setSessions((current) => ensureSession(current, sessionKey))
-  }
-
-  function handleNewSession(): void {
-    const sessionKey = `agent:default:chat-${Date.now()}`
-    setSessions((current) => ensureSession(current, sessionKey))
-    setActiveSession(sessionKey)
-    hydrateSession(sessionKey, [])
-    setSendError(null)
-  }
+  // messages[activeSession] === undefined means never loaded; [] means hydrated (new or empty)
+  const messagesNotLoaded = messages[activeSession] === undefined
+  const hasMessages = activeMessages.length > 0 || (historyLoading && messagesNotLoaded)
 
   return (
     <div className="flex h-full">
-      <aside className="w-80 shrink-0 border-r border-border bg-surface flex flex-col">
-        <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-sm font-medium text-foreground">Chat</h1>
-              <p className="text-xs text-muted-foreground mt-1">
-                ClawPilot chat client on top of the local OpenClaw runtime
-              </p>
-            </div>
-            <button
-              onClick={handleNewSession}
-              className="cp-btn cp-btn-primary px-3 py-1.5 text-xs"
-            >
-              New Session
-            </button>
+      {/* Main content — full width, no session sidebar */}
+      <section className="flex min-w-0 flex-1 flex-col">
+        {/* Setup / starting banners */}
+        {needsSetup && <SetupBanner onGoToProviders={() => onNavigate('providers')} />}
+        {isStarting && <StartingBanner />}
+
+        {/* Send error banner */}
+        {sendError && (
+          <div className="mx-4 mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {sendError}
           </div>
-        </div>
+        )}
 
-        <div className="px-5 py-3 border-b border-border text-xs text-muted-foreground space-y-1">
-          <p>Workspace</p>
-          <p className="font-mono text-foreground/80 break-all">{snapshot.setup.workspaceRoot}</p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {sessionsLoading && sessions.length === 0 && (
-            <p className="text-sm text-muted-foreground px-2 py-4">Loading sessions…</p>
-          )}
-
-          {sessions.map((session) => (
-            <button
-              key={session.key}
-              onClick={() => setActiveSession(session.key)}
-              className={`w-full rounded-2xl border px-3 py-3 text-left transition-colors ${
-                activeSession === session.key
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-surface-2 hover:bg-surface-2/80'
-              }`}
-            >
-              <p className="text-sm font-medium text-foreground truncate">{session.title}</p>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 min-h-8">
-                {session.preview || session.key}
-              </p>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <section className="flex-1 min-w-0 flex flex-col">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-medium text-foreground">{activeSessionLabel}</h2>
-            <p className="text-xs text-muted-foreground mt-1 font-mono">{activeSession}</p>
+        {/* Content area */}
+        {isReady && historyLoading && messagesNotLoaded ? (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-xs text-muted-foreground">{t('app.chat.loadingHistory')}</p>
           </div>
-          <button
-            onClick={() => setRefreshNonce((value) => value + 1)}
-            className="cp-btn cp-btn-muted px-3 py-1.5 text-xs"
-          >
-            Refresh
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {historyLoading && activeMessages.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Loading history…</p>
-          ) : activeMessages.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="max-w-lg text-center space-y-3">
-                <p className="text-foreground text-base font-medium">No messages yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Start a new conversation. Messages are sent through the local OpenClaw gateway and use the currently selected default model.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeMessages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
-              <div ref={endRef} />
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-border px-6 py-4 space-y-3">
-          {sendError && (
-            <div className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {sendError}
-            </div>
-          )}
-          <div className="flex gap-3">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  void handleSend()
-                }
-              }}
-              placeholder="Send a message to OpenClaw…"
-              className="cp-input flex-1 min-h-28 resize-none"
-            />
-            <div className="w-28 shrink-0 flex flex-col gap-2">
-              <button
-                onClick={() => void handleSend()}
-                disabled={!input.trim() || isStreaming}
-                className="cp-btn cp-btn-primary px-4 py-3 text-sm"
-              >
-                {isStreaming ? 'Streaming…' : 'Send'}
-              </button>
-              <div className="rounded-2xl border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-                <p>Model</p>
-                <p className="mt-1 text-foreground/80 font-mono break-words">
-                  {snapshot.setup.hasDefaultModel ? 'Default from Providers' : 'Not set'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        ) : !isReady || !hasMessages ? (
+          <WelcomeView
+            input={input}
+            setInput={setInput}
+            onSend={() => void handleSend()}
+            accounts={enabledAccounts}
+            defaultAccountId={defaultAccountId}
+            onSelectModel={(id) => void handleSelectModel(id)}
+            isStreaming={isStreaming || !isReady}
+          />
+        ) : (
+          <ChatView
+            messages={activeMessages}
+            input={input}
+            setInput={setInput}
+            onSend={() => void handleSend()}
+            accounts={enabledAccounts}
+            defaultAccountId={defaultAccountId}
+            onSelectModel={(id) => void handleSelectModel(id)}
+            isStreaming={isStreaming}
+            pendingScrollRef={pendingScrollRef}
+          />
+        )}
       </section>
     </div>
   )
 }
 
-function normalizeSessions(raw: unknown): SessionSummary[] {
-  const sessionsRaw = Array.isArray(raw)
-    ? raw
-    : Array.isArray((raw as { sessions?: unknown })?.sessions)
-    ? ((raw as { sessions: unknown[] }).sessions)
-    : []
-
-  return sessionsRaw.flatMap((entry, index) => {
-    if (typeof entry === 'string') {
-      return [{ key: entry, title: entry, preview: '', updatedAt: undefined }]
-    }
-
-    if (!entry || typeof entry !== 'object') {
-      return []
-    }
-
-    const item = entry as Record<string, unknown>
-    const key = typeof item.key === 'string' ? item.key : typeof item.sessionKey === 'string' ? item.sessionKey : `session-${index}`
-    const title = firstString(item.derivedTitle, item.displayName, item.label, item.subject, key)
-    const preview = firstString(item.lastMessagePreview, item.preview, '')
-    const updatedAt = typeof item.updatedAt === 'number'
-      ? item.updatedAt
-      : typeof item.updatedAtMs === 'number'
-      ? item.updatedAtMs
-      : undefined
-
-    return [{ key, title, preview, updatedAt }]
-  }).sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
-}
-
-function ensureSession(list: SessionSummary[], sessionKey: string): SessionSummary[] {
-  if (!sessionKey.trim()) {
-    return list
-  }
-
-  if (list.some((entry) => entry.key === sessionKey)) {
-    return list
-  }
-
-  return [{ key: sessionKey, title: sessionKey, preview: '', updatedAt: Date.now() }, ...list]
-}
-
-function firstString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-  }
-  return ''
-}
-
-function CenteredState({
-  title,
-  body,
-  footer,
-}: {
-  title: string
-  body: string
-  footer?: string
-}): React.ReactElement {
-  return (
-    <div className="flex items-center justify-center h-full px-6">
-      <div className="max-w-xl text-center space-y-3">
-        <p className="text-foreground text-base font-medium">{title}</p>
-        <p className="text-muted-foreground text-sm">{body}</p>
-        {footer && <p className="text-muted-foreground text-xs font-mono break-all">{footer}</p>}
-      </div>
-    </div>
-  )
-}
