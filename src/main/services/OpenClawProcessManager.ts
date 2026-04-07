@@ -9,8 +9,6 @@ import { ensureOpenClawBaseConfig } from './OpenClawConfigWriter'
 import { mainLogger } from '../utils/logger'
 
 const GATEWAY_PORT = 18790
-const STARTUP_HEALTH_INTERVAL_MS = 500
-const STARTUP_HEALTH_MAX_ATTEMPTS = 40 // 20 seconds total
 const HEALTH_MONITOR_INTERVAL_MS = 5000
 const HEALTH_FAILURE_THRESHOLD = 3
 const STDERR_BUFFER_LINES = 30
@@ -24,7 +22,6 @@ export class OpenClawProcessManager {
   private child: ChildProcess | null = null
   private readonly state: RuntimeState
   private stderrBuffer: string[] = []
-  private exitInfo: { code: number | null; signal: string | null } | null = null
   private healthTimer: NodeJS.Timeout | null = null
   private healthFailures = 0
   private restartAttempts = 0
@@ -88,7 +85,6 @@ export class OpenClawProcessManager {
 
       this.child.on('exit', (code, signal) => {
         mainLogger.info(`[ProcessManager] exited code=${code} signal=${signal}`)
-        this.exitInfo = { code, signal }
         this.stopHealthMonitor()
         const wasRunning = this.state.snapshot.status === 'RUNNING'
 
@@ -116,8 +112,7 @@ export class OpenClawProcessManager {
         this.child = null
       })
 
-      await this.waitUntilReady()
-      this.startHealthMonitor()
+      // Process spawned — stay in STARTING until WS connects (handled by index.ts)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const reason = classifyFailure(message, this.stderrBuffer)
@@ -214,37 +209,15 @@ export class OpenClawProcessManager {
     }
   }
 
-  private async waitUntilReady(): Promise<void> {
-    const url = `http://127.0.0.1:${GATEWAY_PORT}/health`
-
-    for (let i = 0; i < STARTUP_HEALTH_MAX_ATTEMPTS; i++) {
-      if (!this.child) {
-        throw new Error('OpenClaw process exited before becoming ready')
-      }
-
-      try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(500) })
-        // Accept any HTTP response (including 500) as "gateway is up and responding"
-        // A 500 means the server is running but may have internal issues — that's still "ready"
-        mainLogger.info(`[ProcessManager] Gateway responding (attempt ${i + 1}, status=${res.status})`)
-        this.state.transition('RUNNING', {
-          pid: this.child?.pid,
-          startedAt: Date.now(),
-          port: GATEWAY_PORT,
-        })
-        this.state.setHealth(res.ok ? 'ok' : 'degraded', Date.now())
-        return
-      } catch {
-        // Connection refused / timeout — not ready yet
-      }
-
-      await sleep(STARTUP_HEALTH_INTERVAL_MS)
-    }
-
-    throw new Error(`Gateway did not start within ${(STARTUP_HEALTH_INTERVAL_MS * STARTUP_HEALTH_MAX_ATTEMPTS) / 1000}s`)
+  get port(): number {
+    return GATEWAY_PORT
   }
 
-  private startHealthMonitor(): void {
+  get pid(): number | undefined {
+    return this.child?.pid
+  }
+
+  startHealthMonitor(): void {
     this.stopHealthMonitor()
     this.healthFailures = 0
 
@@ -285,10 +258,6 @@ export class OpenClawProcessManager {
       this.stderrBuffer = this.stderrBuffer.slice(-STDERR_BUFFER_LINES)
     }
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function classifyFailure(message: string, stderr: string[]): string {

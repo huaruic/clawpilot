@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, access, rename, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { WsGatewayClient } from '../services/WsGatewayClient'
-import { ChatSendSchema, ChatHistorySchema, ChatAbortSchema, SessionDeleteSchema } from './schemas/chat.schema'
+import { ChatSendSchema, ChatHistorySchema, ChatAbortSchema, SessionDeleteSchema, SessionResetSchema } from './schemas/chat.schema'
 import { mainLogger } from '../utils/logger'
 import { getOpenClawStateDir } from '../services/RuntimeLocator'
 
@@ -80,6 +80,20 @@ export function registerChatIpc({ getWsClient, getMainWindow }: Deps): void {
       })
     } catch (err) {
       mainLogger.warn('[chat:abort] failed:', String(err))
+      throw err
+    }
+  })
+
+  // ── Reset Session (clear context) ─────────────────────────────
+
+  ipcMain.handle('chat:resetSession', async (_, raw) => {
+    const params = SessionResetSchema.parse(raw)
+    try {
+      return await getWsClient().request('sessions.reset', {
+        key: params.sessionKey,
+      })
+    } catch (err) {
+      mainLogger.warn('[chat:resetSession] failed:', String(err))
       throw err
     }
   })
@@ -227,6 +241,7 @@ export function registerChatEventForwarding(
 
     if (normalized.state === 'final' || normalized.state === 'error' || normalized.state === 'aborted') {
       runSessions.delete(normalized.runId)
+
     }
   })
 }
