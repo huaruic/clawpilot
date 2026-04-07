@@ -147,9 +147,9 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
 
   // Fetch sessions whenever runtime becomes running or session list is bumped.
   useEffect(() => {
-    if (snapshot.status !== 'RUNNING') return
+    if (snapshot.status !== 'RUNNING' || !snapshot.wsConnected) return
     void fetchSessions()
-  }, [snapshot.status, snapshot.startedAt, sessionListVersion, fetchSessions])
+  }, [snapshot.status, snapshot.startedAt, snapshot.wsConnected, sessionListVersion, fetchSessions])
 
   // Build session list with fallback to local sessionLabels when gateway returns empty.
   const mergedSessions = React.useMemo(() => {

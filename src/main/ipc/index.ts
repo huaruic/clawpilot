@@ -10,6 +10,7 @@ import { registerChannelsIpc } from './channels.ipc'
 import { registerSkillsIpc } from './skills.ipc'
 import { registerRoutingIpc } from './routing.ipc'
 import { registerDiagnosticsIpc } from './diagnostics.ipc'
+import { registerDashboardIpc } from './dashboard.ipc'
 import { OpenClawDiagnostics } from '../services/OpenClawDiagnostics'
 
 interface Deps {
@@ -28,6 +29,8 @@ export function registerAllIpc(deps: Deps): void {
   registerChannelsIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
   registerRoutingIpc({ processManager: deps.processManager, state: deps.state })
   registerSkillsIpc()
+
+  registerDashboardIpc({ getWsClient: deps.getWsClient, getMainWindow: deps.getMainWindow })
 
   // Diagnostics and Logs
   const diagnostics = new OpenClawDiagnostics()

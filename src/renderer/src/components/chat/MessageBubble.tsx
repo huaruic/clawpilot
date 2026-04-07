@@ -77,7 +77,7 @@ export function MessageBubble({ message }: Props): React.ReactElement {
           {isError ? (
             <pre className="m-0 whitespace-pre-wrap break-words font-sans">{message.content}</pre>
           ) : (
-            <div className="chat-markdown break-words">
+            <div className={`chat-markdown break-words ${isStreaming ? 'streaming-content' : ''}`}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

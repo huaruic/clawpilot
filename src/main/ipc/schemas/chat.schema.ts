@@ -27,3 +27,7 @@ export const ChatAbortSchema = z.object({
 export const SessionDeleteSchema = z.object({
   sessionKey: z.string().min(1),
 })
+
+export const SessionResetSchema = z.object({
+  sessionKey: z.string().min(1),
+})
