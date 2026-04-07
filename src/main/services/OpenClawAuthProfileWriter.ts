@@ -16,48 +16,90 @@ interface ApiKeyCredential {
   key: string
 }
 
-type AuthProfileCredential = ApiKeyCredential | Record<string, unknown>
+interface OAuthCredential {
+  type: 'oauth'
+  provider: string
+  access: string
+  refresh?: string
+  expires?: number
+  email?: string
+  displayName?: string
+}
+
+type AuthProfileCredential = ApiKeyCredential | OAuthCredential | Record<string, unknown>
 
 interface ProviderCredential {
   name: string
-  apiKey: string
+  apiKey?: string
+  oauth?: { access: string; refresh: string; expires: number; email?: string }
 }
 
 const MANAGED_PROFILE_PREFIX = 'clawpilot-'
 const MANAGED_AGENT_IDS = ['main', 'default']
 
+/**
+ * List all routing profile agent IDs by scanning the agents/ directory.
+ * Returns IDs beyond the built-in 'main' and 'default'.
+ */
+async function listRoutingProfileAgentIds(): Promise<string[]> {
+  const agentsDir = path.join(getOpenClawStateDir(), 'agents')
+  try {
+    const entries = await fs.readdir(agentsDir, { withFileTypes: true })
+    return entries
+      .filter((e) => e.isDirectory() && !MANAGED_AGENT_IDS.includes(e.name))
+      .map((e) => e.name)
+  } catch {
+    return []
+  }
+}
+
 export async function syncManagedAuthProfiles(providers: ProviderCredential[]): Promise<void> {
-  const activeProviders = new Map(
-    providers
-      .filter((provider) => provider.apiKey.trim().length > 0)
-      .map((provider) => [provider.name, provider.apiKey.trim()])
+  const activeNames = new Set(
+    providers.filter((p) => p.apiKey?.trim() || p.oauth).map((p) => p.name),
   )
 
-  await Promise.all(MANAGED_AGENT_IDS.map(async (agentId) => {
+  // Sync to built-in agents + all routing profile agents
+  const routingIds = await listRoutingProfileAgentIds()
+  const allAgentIds = [...MANAGED_AGENT_IDS, ...routingIds]
+
+  await Promise.all(allAgentIds.map(async (agentId) => {
     const authPath = getAuthProfilesPath(agentId)
     const store = await readAuthProfileStore(authPath)
 
-    for (const [profileId, credential] of Object.entries(store.profiles)) {
+    // Remove managed profiles that are no longer active
+    for (const profileId of Object.keys(store.profiles)) {
       if (!profileId.startsWith(MANAGED_PROFILE_PREFIX)) continue
       const provider = profileId.slice(MANAGED_PROFILE_PREFIX.length)
-      if (!activeProviders.has(provider)) {
+      if (!activeNames.has(provider)) {
         delete store.profiles[profileId]
       }
     }
 
-    for (const [provider, apiKey] of activeProviders) {
-      const profileId = buildManagedProfileId(provider)
-      store.profiles[profileId] = {
-        type: 'api_key',
-        provider,
-        key: apiKey,
+    // Upsert active profiles
+    for (const cred of providers) {
+      if (!cred.apiKey?.trim() && !cred.oauth) continue
+      const profileId = buildManagedProfileId(cred.name)
+
+      if (cred.oauth) {
+        store.profiles[profileId] = {
+          type: 'oauth',
+          provider: cred.name,
+          access: cred.oauth.access,
+          refresh: cred.oauth.refresh,
+          expires: cred.oauth.expires,
+          ...(cred.oauth.email ? { email: cred.oauth.email } : {}),
+        }
+      } else {
+        store.profiles[profileId] = {
+          type: 'api_key',
+          provider: cred.name,
+          key: cred.apiKey!.trim(),
+        }
       }
-      const existingOrder = store.order?.[provider] ?? []
-      const nextOrder = [profileId, ...existingOrder.filter((entry) => entry !== profileId)]
-      store.order = {
-        ...(store.order ?? {}),
-        [provider]: nextOrder,
-      }
+
+      const existingOrder = store.order?.[cred.name] ?? []
+      const nextOrder = [profileId, ...existingOrder.filter((e) => e !== profileId)]
+      store.order = { ...(store.order ?? {}), [cred.name]: nextOrder }
     }
 
     cleanupEmptyOrder(store)

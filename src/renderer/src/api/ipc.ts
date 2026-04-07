@@ -33,15 +33,27 @@ export interface RuntimeSnapshot {
   healthStatus?: RuntimeHealth
 }
 
-export interface ChatEvent {
-  runId: string
-  sessionKey: string
-  seq: number
-  state: 'delta' | 'final' | 'aborted' | 'error'
-  message?: unknown
-  errorMessage?: string
-}
+// ChatEvent is the canonical type — re-exported from types/chat.ts
+export type { ChatEvent } from '../types/chat'
 
+// Re-export shared provider types for renderer use
+export type {
+  ProviderType,
+  ProviderProtocol,
+  ProviderAuthMode,
+  ProviderDefinition,
+  ProviderAccount,
+  ProviderSecret,
+} from '../../../shared/providers/types'
+
+// Re-export shared routing types for renderer use
+export type {
+  RoutingProfile,
+  ChannelRoute,
+  RoutingSnapshot,
+} from '../../../shared/types/routing'
+
+/** @deprecated Use ProviderAccount instead */
 export interface ProviderInfo {
   name: string
   baseUrl: string
@@ -49,16 +61,10 @@ export interface ProviderInfo {
   models: Array<{ id: string; name?: string }>
 }
 
-export interface OllamaStatus {
-  installed: boolean
-  running: boolean
-  recommendedModel: string
-  recommendedInstalled: boolean
-  availableModels: string[]
-  downloading: boolean
-  downloadProgress: number
-  downloadLog: string[]
+export interface ValidationResult {
+  valid: boolean
   error?: string
+  status?: number
 }
 
 export interface DiagnosticIssue {
@@ -89,29 +95,24 @@ export interface DiagnosticFixResult {
   output?: string
 }
 
-export interface FeishuConfigInfo {
+// --- Generic channel types ---
+
+export interface ChannelConfigInfo {
+  channelType: string
   enabled: boolean
-  connectionMode: 'websocket' | 'webhook'
-  dmPolicy: string
-  defaultAccount: string
-  appId: string
-  appSecret: string
+  values: Record<string, string>
   runtimeRunning: boolean
 }
 
-export interface FeishuPairingRequest {
-  id: string
-  code: string
-  createdAt: string
-  lastSeenAt?: string
+export interface ChannelValidationResult {
+  ok: boolean
+  error?: string
   meta?: Record<string, unknown>
 }
 
-export interface FeishuValidationInfo {
-  ok: boolean
-  error?: string
-  botOpenId?: string
-  botName?: string
+export interface ConfiguredChannel {
+  type: string
+  enabled: boolean
 }
 
 export interface SkillInfo {
@@ -158,12 +159,60 @@ export interface ClawPilotAPI {
     onStatusChange: (cb: (snap: RuntimeSnapshot) => void) => () => void
   }
   chat: {
-    send: (params: { sessionKey: string; message: string }) => Promise<unknown>
+    send: (params: {
+      sessionKey: string
+      message: string
+      attachments?: Array<{ content: string; mimeType: string; fileName: string }>
+    }) => Promise<unknown>
     history: (params: { sessionKey: string; limit?: number }) => Promise<unknown>
     sessions: () => Promise<unknown>
+    abort: (params: { sessionKey: string; runId?: string }) => Promise<unknown>
+    deleteSession: (params: { sessionKey: string }) => Promise<unknown>
+    agents: () => Promise<unknown>
     onChunk: (cb: (chunk: ChatEvent) => void) => () => void
   }
+  file: {
+    readAsBase64: (filePath: string) => Promise<{
+      content: string
+      mimeType: string
+      fileName: string
+      fileSize: number
+    }>
+  }
   provider: {
+    // New account-based API
+    listVendors: () => Promise<import('../../../shared/providers/types').ProviderDefinition[]>
+    listAccounts: () => Promise<import('../../../shared/providers/types').ProviderAccount[]>
+    createAccount: (params: {
+      account: Omit<import('../../../shared/providers/types').ProviderAccount, 'createdAt' | 'updatedAt'>
+      apiKey?: string
+    }) => Promise<{ ok: boolean; account: import('../../../shared/providers/types').ProviderAccount }>
+    updateAccount: (params: {
+      accountId: string
+      updates: Partial<import('../../../shared/providers/types').ProviderAccount>
+      apiKey?: string
+    }) => Promise<{ ok: boolean; account: import('../../../shared/providers/types').ProviderAccount }>
+    deleteAccount: (params: { accountId: string }) => Promise<{ ok: boolean }>
+    setDefaultAccount: (params: { accountId: string }) => Promise<{ ok: boolean }>
+    getDefaultAccount: () => Promise<string | null>
+    validate: (params: {
+      providerType: string
+      apiKey: string
+      baseUrl?: string
+      apiProtocol?: string
+    }) => Promise<ValidationResult>
+    getAccountKey: (params: { accountId: string }) => Promise<string>
+    hasAccountKey: (params: { accountId: string }) => Promise<boolean>
+    oauthStart: (params: {
+      provider: string
+      region?: 'global' | 'cn'
+      accountId?: string
+      label?: string
+    }) => Promise<{ ok: boolean; error?: string }>
+    oauthCancel: () => Promise<{ ok: boolean }>
+    onOAuthEvent: (cb: (event: string, data: unknown) => void) => () => void
+
+    // Legacy API (deprecated)
     list: () => Promise<ProviderInfo[]>
     save: (params: {
       name: string
@@ -175,6 +224,7 @@ export interface ClawPilotAPI {
     delete: (name: string) => Promise<{ ok: boolean }>
     getDefault: () => Promise<string>
     setDefault: (model: string) => Promise<{ ok: boolean }>
+    getKey: (name: string) => Promise<string>
     test: (params: { baseUrl: string; apiKey: string }) => Promise<{
       ok: boolean
       status?: number
@@ -183,36 +233,48 @@ export interface ClawPilotAPI {
     }>
   }
   channels: {
-    validateFeishuCredentials: (params: { appId: string; appSecret: string }) => Promise<FeishuValidationInfo>
-    getFeishuConfig: () => Promise<FeishuConfigInfo>
-    saveFeishuConfig: (params: { appId: string; appSecret: string }) => Promise<{
+    // Generic channel API
+    getConfig: (params: { channelType: string }) => Promise<ChannelConfigInfo>
+    saveConfig: (params: { channelType: string; values: Record<string, string> }) => Promise<{
       ok: boolean
       runtimeRestarted: boolean
     }>
-    resetFeishu: () => Promise<{
+    deleteConfig: (params: { channelType: string }) => Promise<{
       ok: boolean
       runtimeRestarted: boolean
     }>
-    getLatestPairing: () => Promise<{
-      ok: boolean
-      request?: FeishuPairingRequest | null
-      error?: string
-    }>
-    approvePairing: (params: { code: string }) => Promise<{
-      ok: boolean
-      message?: string
-      error?: string
-    }>
+    validateCredentials: (params: { channelType: string; values: Record<string, string> }) => Promise<ChannelValidationResult>
+    listConfigured: () => Promise<ConfiguredChannel[]>
+  }
+  routing: {
+    listProfiles: () => Promise<RoutingSnapshot>
+    createProfile: (params: {
+      name: string
+      modelRef?: string
+      inheritWorkspace?: boolean
+      channelBindings?: Array<{ channelType: string; accountId: string }>
+    }) => Promise<RoutingProfile>
+    updateProfile: (params: {
+      id: string
+      name?: string
+      modelRef?: string | null
+    }) => Promise<RoutingProfile>
+    deleteProfile: (params: { id: string }) => Promise<{ ok: boolean }>
+    getRoute: (params: { channelType: string; accountId: string }) => Promise<ChannelRoute | null>
+    setRoute: (params: {
+      channelType: string
+      accountId: string
+      profileId: string
+    }) => Promise<{ ok: boolean }>
+    clearRoute: (params: {
+      channelType: string
+      accountId: string
+    }) => Promise<{ ok: boolean }>
   }
   skills: {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
-  }
-  ollama: {
-    status: () => Promise<OllamaStatus>
-    pullRecommended: () => Promise<{ ok: boolean }>
-    openInstallPage: () => Promise<{ ok: boolean }>
   }
   diagnostics: {
     run: () => Promise<DiagnosticReport>

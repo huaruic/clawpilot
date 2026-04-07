@@ -1,10 +1,17 @@
 import { z } from 'zod'
 
-export const SaveFeishuConfigSchema = z.object({
-  appId: z.string().min(4),
-  appSecret: z.string().min(6),
+// --- Generic channel schemas ---
+
+export const SaveChannelConfigSchema = z.object({
+  channelType: z.string().min(1),
+  values: z.record(z.string()),
 })
 
-export const ApproveFeishuPairingSchema = z.object({
-  code: z.string().min(4),
+export const ChannelTypeSchema = z.object({
+  channelType: z.string().min(1),
+})
+
+export const ValidateChannelCredentialsSchema = z.object({
+  channelType: z.string().min(1),
+  values: z.record(z.string()),
 })

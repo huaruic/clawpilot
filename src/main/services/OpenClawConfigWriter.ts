@@ -80,10 +80,14 @@ export async function resetWorkspaceRoot(): Promise<void> {
   await writeWorkspaceRoot(getDefaultOpenClawWorkspaceRoot())
 }
 
-async function readExistingConfig(): Promise<Record<string, unknown>> {
+export async function readExistingConfig(): Promise<Record<string, unknown>> {
   try {
     const raw = await fs.readFile(getConfigPath(), 'utf-8')
-    return (JSON5.parse(raw) as Record<string, unknown>) ?? {}
+    const config = (JSON5.parse(raw) as Record<string, unknown>) ?? {}
+    // Strip `routing` — it's Paris-internal and the Gateway rejects unknown keys.
+    // This ensures any `{...existing, ...}` spread never carries it back.
+    delete config.routing
+    return config
   } catch {
     return {}
   }
@@ -121,6 +125,9 @@ export async function ensureOpenClawBaseConfig(): Promise<void> {
       },
     },
   }
+
+  // `routing` is Paris-internal — Gateway rejects unrecognized top-level keys
+  delete (updated as Record<string, unknown>).routing
 
   await fs.writeFile(configPath, JSON5.stringify(updated, null, 2), 'utf-8')
 }
@@ -173,6 +180,9 @@ export async function writeOpenClawConfig(providers: ProviderEntry[]): Promise<v
     },
   }
 
+  // `routing` is Paris-internal — Gateway rejects unrecognized top-level keys
+  delete (updated as Record<string, unknown>).routing
+
   await fs.writeFile(configPath, JSON5.stringify(updated, null, 2), 'utf-8')
 }
 
@@ -189,7 +199,7 @@ export async function loadFeishuConfig(): Promise<FeishuConfig> {
   return {
     enabled: feishu.enabled !== false && (Object.keys(account).length > 0 || Boolean(feishu.enabled)),
     connectionMode: feishu.connectionMode === 'webhook' ? 'webhook' : 'websocket',
-    dmPolicy: typeof feishu.dmPolicy === 'string' && feishu.dmPolicy.trim() ? String(feishu.dmPolicy) : 'pairing',
+    dmPolicy: typeof feishu.dmPolicy === 'string' && feishu.dmPolicy.trim() ? String(feishu.dmPolicy) : 'open',
     defaultAccount,
     appId: typeof account.appId === 'string' ? account.appId : '',
     appSecret: typeof account.appSecret === 'string' ? account.appSecret : '',
@@ -216,7 +226,8 @@ export async function writeFeishuConfig(params: { appId: string; appSecret: stri
         ...feishu,
         enabled: true,
         connectionMode: 'websocket',
-        dmPolicy: 'pairing',
+        dmPolicy: 'open',
+        allowFrom: ['*'],
         defaultAccount,
         accounts: {
           ...accounts,
@@ -464,7 +475,7 @@ export async function inspectOpenClawSetup(): Promise<OpenClawSetup> {
 
 async function pathExists(target: string): Promise<boolean> {
   try {
-    await access(target)
+    await fs.access(target)
     return true
   } catch {
     return false
@@ -473,4 +484,131 @@ async function pathExists(target: string): Promise<boolean> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// ── Routing config helpers ────────────────────────────────────────
+
+export interface RoutingConfigRaw {
+  profiles?: Record<string, unknown>
+  routes?: unknown[]
+}
+
+function getRoutingConfigPath(): string {
+  return path.join(getOpenClawStateDir(), 'routing.json')
+}
+
+export async function readRoutingConfig(): Promise<RoutingConfigRaw> {
+  // Try reading from the dedicated routing file first
+  try {
+    const raw = await fs.readFile(getRoutingConfigPath(), 'utf-8')
+    const routing = (JSON5.parse(raw) as RoutingConfigRaw) ?? {}
+    return {
+      profiles: routing.profiles ?? {},
+      routes: Array.isArray(routing.routes) ? routing.routes : [],
+    }
+  } catch {
+    // File doesn't exist yet — fall through
+  }
+
+  // Migration: check if routing data exists in the old location (openclaw.json).
+  // Read raw file since readExistingConfig() strips the routing key.
+  try {
+    const rawConfig = await fs.readFile(getConfigPath(), 'utf-8')
+    const parsed = (JSON5.parse(rawConfig) as Record<string, unknown>) ?? {}
+    const legacy = (parsed.routing as RoutingConfigRaw | undefined) ?? {}
+    const hasLegacy = (legacy.profiles && Object.keys(legacy.profiles).length > 0) ||
+      (Array.isArray(legacy.routes) && legacy.routes.length > 0)
+
+    if (hasLegacy) {
+      // Migrate: write to new file and strip from openclaw.json
+      const routing: RoutingConfigRaw = {
+        profiles: legacy.profiles ?? {},
+        routes: Array.isArray(legacy.routes) ? legacy.routes : [],
+      }
+      await writeRoutingConfig(routing)
+
+      // Remove `routing` key from openclaw.json so Gateway stops rejecting it
+      delete parsed.routing
+      await fs.writeFile(getConfigPath(), JSON5.stringify(parsed, null, 2), 'utf-8')
+
+      return routing
+    }
+  } catch {
+    // Config file doesn't exist or parse error — skip migration
+  }
+
+  return { profiles: {}, routes: [] }
+}
+
+export async function writeRoutingConfig(routing: RoutingConfigRaw): Promise<void> {
+  const routingPath = getRoutingConfigPath()
+  await fs.mkdir(path.dirname(routingPath), { recursive: true })
+  await fs.writeFile(routingPath, JSON5.stringify(routing, null, 2), 'utf-8')
+}
+
+/**
+ * Translate Paris routing config into Gateway-native agents.list + bindings.
+ * This enables the Gateway to route channel messages to the correct model
+ * without knowing about Paris's RoutingProfile abstraction.
+ */
+export async function syncRoutingToGatewayFormat(
+  profiles: Array<{ id: string; name: string; modelRef: string | null; workspacePath?: string }>,
+  routes: Array<{ channelType: string; accountId: string; profileId: string }>,
+): Promise<void> {
+  const configPath = getConfigPath()
+  await fs.mkdir(path.dirname(configPath), { recursive: true })
+  const existing = await readExistingConfig()
+  const agents = (existing.agents as Record<string, unknown>) ?? {}
+  const defaults = (agents.defaults as Record<string, unknown>) ?? {}
+
+  // Build agents.list from profiles.
+  // All agents share the main agent's agentDir so they inherit its auth-profiles.
+  const mainAgentDir = path.join(getOpenClawStateDir(), 'agents', 'main', 'agent')
+  const agentList = profiles.map((p) => {
+    const entry: Record<string, unknown> = {
+      id: p.id,
+      name: p.name,
+      ...(p.id === 'default' ? { default: true } : {}),
+      workspace: p.workspacePath ?? `~/.openclaw/workspace-${p.id}`,
+      agentDir: mainAgentDir,
+    }
+    if (p.modelRef) {
+      entry.model = { primary: p.modelRef }
+    }
+    return entry
+  })
+
+  // Build bindings from routes (skip default profile — that's the fallback)
+  const bindings = routes
+    .filter((r) => r.profileId !== 'default')
+    .map((r) => ({
+      agentId: r.profileId,
+      match: {
+        channel: r.channelType,
+        accountId: r.accountId,
+      },
+    }))
+
+  const agentsBlock: Record<string, unknown> = { ...agents, defaults }
+  if (agentList.length > 0) {
+    agentsBlock.list = agentList
+  } else {
+    // No routing profiles → remove stale agents.list so Gateway uses built-in defaults
+    delete agentsBlock.list
+  }
+
+  const updated: Record<string, unknown> = {
+    ...existing,
+    agents: agentsBlock,
+    ...(bindings.length > 0 ? { bindings } : {}),
+  }
+
+  // Clean up empty/stale keys
+  if (bindings.length === 0) {
+    delete updated.bindings
+  }
+  // `routing` is Paris-internal — Gateway rejects unrecognized top-level keys
+  delete (updated as Record<string, unknown>).routing
+
+  await fs.writeFile(configPath, JSON5.stringify(updated, null, 2), 'utf-8')
 }

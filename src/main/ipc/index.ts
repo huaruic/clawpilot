@@ -8,6 +8,7 @@ import { registerOllamaIpc } from './ollama.ipc'
 import { registerProviderIpc } from './provider.ipc'
 import { registerChannelsIpc } from './channels.ipc'
 import { registerSkillsIpc } from './skills.ipc'
+import { registerRoutingIpc } from './routing.ipc'
 import { registerDiagnosticsIpc } from './diagnostics.ipc'
 import { OpenClawDiagnostics } from '../services/OpenClawDiagnostics'
 
@@ -25,6 +26,7 @@ export function registerAllIpc(deps: Deps): void {
   registerOllamaIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
   registerProviderIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
   registerChannelsIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
+  registerRoutingIpc({ processManager: deps.processManager, state: deps.state })
   registerSkillsIpc()
 
   // Diagnostics and Logs

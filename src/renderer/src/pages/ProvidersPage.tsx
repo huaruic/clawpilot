@@ -1,457 +1,757 @@
 import React, { useEffect, useState } from 'react'
-import type { OllamaStatus, ProviderInfo } from '../api/ipc'
+import { Trash2, Star, Pencil, Settings, LogIn, Eye, EyeOff, Key, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { useI18n } from '../i18n/I18nProvider'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog'
+import { toast } from 'sonner'
+import {
+  useProviderStore,
+  getUnconfiguredVendors,
+  getVendorForAccount,
+} from '../stores/providerStore'
+import type {
+  ProviderAccount,
+  ProviderDefinition,
+  ProviderProtocol,
+  ProviderType,
+} from '../../../shared/providers/types'
 
-const PRESETS = [
-  {
-    label: 'KIMI (Moonshot)',
-    name: 'moonshot',
-    baseUrl: 'https://api.moonshot.cn/v1',
-    api: 'openai-completions',
-    models: [
-      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'kimi-k2-0905-preview', name: 'Kimi K2 0905 Preview' },
-      { id: 'kimi-k2-turbo-preview', name: 'Kimi K2 Turbo' },
-      { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking' },
-      { id: 'kimi-k2-thinking-turbo', name: 'Kimi K2 Thinking Turbo' },
-    ],
-  },
-  {
-    label: 'OpenAI',
-    name: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-    api: 'openai-completions',
-    models: [{ id: 'gpt-4o', name: 'GPT-4o' }, { id: 'gpt-4o-mini', name: 'GPT-4o Mini' }],
-  },
-  {
-    label: 'Anthropic',
-    name: 'anthropic',
-    baseUrl: 'https://api.anthropic.com',
-    api: 'anthropic-messages',
-    models: [{ id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' }, { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' }],
-  },
-  {
-    label: 'OpenRouter',
-    name: 'openrouter',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    api: 'openai-completions',
-    models: [],
-  },
-]
+/* ── Form state ── */
 
 interface FormState {
-  name: string
+  accountId: string
+  vendorId: ProviderType
+  label: string
   baseUrl: string
   apiKey: string
-  api: string
-  presetKey: string
+  apiProtocol: ProviderProtocol
+  model: string
+  headers: string // JSON string for custom headers
+  isEditing: boolean
+  vendor: ProviderDefinition | null
+  authMode: 'api_key' | 'oauth'
+  showAdvanced: boolean
 }
 
-const EMPTY_FORM: FormState = { name: '', baseUrl: '', apiKey: '', api: 'openai-completions', presetKey: '' }
-const OLLAMA_INSTALL_URL = 'https://ollama.com/download'
+const EMPTY_FORM: FormState = {
+  accountId: '',
+  vendorId: 'custom',
+  label: '',
+  baseUrl: '',
+  apiKey: '',
+  apiProtocol: 'openai-completions',
+  model: '',
+  headers: '',
+  isEditing: false,
+  vendor: null,
+  authMode: 'api_key',
+  showAdvanced: false,
+}
+
+/* ── Helpers ── */
+
+function friendlyProviderError(error?: string): string {
+  if (!error) return '连接失败，请检查 API Key 和 Base URL 是否正确'
+  const msg = error.toLowerCase()
+  if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('invalid'))
+    return 'API Key 无效，请检查后重试'
+  if (msg.includes('404')) return 'API 地址不正确，请检查 Base URL'
+  if (msg.includes('429')) return '请求频率超限，请稍后重试'
+  if (msg.includes('500') || msg.includes('502') || msg.includes('503'))
+    return '服务暂时不可用，请稍后重试'
+  if (msg.includes('econnrefused') || msg.includes('connect'))
+    return '无法连接到服务器，请检查 Base URL 是否正确'
+  if (msg.includes('timeout') || msg.includes('timed out'))
+    return '连接超时，请检查网络或 Base URL'
+  if (msg.includes('certificate') || msg.includes('ssl') || msg.includes('tls'))
+    return 'SSL 证书验证失败，请检查 Base URL'
+  return '连接失败，请检查 API Key 和 Base URL 是否正确'
+}
+
+function authModeBadge(mode: string): string {
+  switch (mode) {
+    case 'api_key': return 'API Key'
+    case 'oauth_device': return 'OAuth'
+    case 'oauth_browser': return 'OAuth'
+    default: return mode
+  }
+}
+
+/* ── Provider SVG Logos ── */
+
+function AnthropicLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M13.827 3.52h3.603L24 20.48h-3.603l-6.57-16.96zm-7.258 0h3.767L16.906 20.48h-3.674l-1.476-3.93H5.036l-1.466 3.93H0L6.569 3.52zm.901 10.08h4.063l-2.03-5.42-2.033 5.42z" />
+    </svg>
+  )
+}
+
+function OpenAILogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+    </svg>
+  )
+}
+
+function GoogleLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5">
+      <path d="M12 11h8.533c.044.385.067.78.067 1.184 0 2.734-.98 5.036-2.678 6.6-1.485 1.371-3.518 2.175-5.922 2.175A8.976 8.976 0 0 1 3 12 8.976 8.976 0 0 1 12 3.04c2.425 0 4.47.893 6.02 2.36l-2.445 2.445C14.59 6.89 13.38 6.44 12 6.44a5.56 5.56 0 0 0 0 11.12c2.58 0 4.35-1.53 4.73-3.56H12V11z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function OpenRouterLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-2.5 4v8h2v-3h1.5l2 3h2.5l-2.5-3.5c1.17-.48 2-1.63 2-2.97 0-1.93-1.57-3.5-3.5-3.5h-4zm2 1.5h2a2 2 0 0 1 0 4h-2v-4z" />
+    </svg>
+  )
+}
+
+function MoonshotLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.5a8.5 8.5 0 0 1 0 17c-3.07 0-5.75-1.63-7.24-4.07A11.5 11.5 0 0 0 15.5 12 11.5 11.5 0 0 0 4.76 7.57 8.48 8.48 0 0 1 12 3.5z" />
+    </svg>
+  )
+}
+
+function MiniMaxLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M3 7h4l3 5 3-5h4l3 5 3-5h1v2l-4 6h-3l-3-5-3 5H8l-4-6V7z" />
+      <path d="M3 14h4l3 5h2l3-5h4l4 3v1h-1l-3-2.5-3 4.5h-4l-3-5-3 5H4l-1-1v-2z" opacity="0.6" />
+    </svg>
+  )
+}
+
+function SiliconFlowLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M4 6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm9 0a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V6zM4 15a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3zm9 0a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3z" />
+    </svg>
+  )
+}
+
+function QwenLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.82 0 3.53-.49 5-1.35l-1.5-1.7A7.96 7.96 0 0 1 12 20a8 8 0 1 1 8-8c0 1.48-.4 2.87-1.1 4.06l1.57 1.78A9.96 9.96 0 0 0 22 12c0-5.52-4.48-10-10-10zm0 5a5 5 0 1 0 3.5 8.57l2.12 2.4 1.5-1.33-2.13-2.4A4.98 4.98 0 0 0 17 12a5 5 0 0 0-5-5zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
+    </svg>
+  )
+}
+
+function ByteDanceLogo(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <path d="M12 2L6 8v8l6 6 6-6V8l-6-6zm0 2.83L16.17 9v6L12 19.17 7.83 15V9L12 4.83z" />
+      <path d="M12 8l-3 3v2l3 3 3-3v-2l-3-3zm0 1.83L13.17 11v2L12 14.17 10.83 13v-2L12 9.83z" />
+    </svg>
+  )
+}
+
+const PROVIDER_LOGOS: Record<string, () => React.ReactElement> = {
+  anthropic: AnthropicLogo,
+  openai: OpenAILogo,
+  google: GoogleLogo,
+  openrouter: OpenRouterLogo,
+  moonshot: MoonshotLogo,
+  'minimax-portal': MiniMaxLogo,
+  'minimax-portal-cn': MiniMaxLogo,
+  siliconflow: SiliconFlowLogo,
+  'qwen-portal': QwenLogo,
+  ark: ByteDanceLogo,
+}
+
+/* ── Provider Icon ── */
+
+function ProviderIcon({ vendorId }: { vendorId: string }): React.ReactElement {
+  const Logo = PROVIDER_LOGOS[vendorId]
+  return (
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+      {Logo ? <Logo /> : <span className="font-mono text-sm">{vendorId.charAt(0).toUpperCase()}</span>}
+    </div>
+  )
+}
+
+/* ── Protocol selector ── */
+
+const PROTOCOL_OPTIONS: Array<{ value: ProviderProtocol; label: string }> = [
+  { value: 'openai-completions', label: 'OpenAI Completions' },
+  { value: 'openai-responses', label: 'OpenAI Responses' },
+  { value: 'anthropic-messages', label: 'Anthropic Messages' },
+]
+
+/* ── Main Page ── */
 
 export function ProvidersPage(): React.ReactElement {
-  const [providers, setProviders] = useState<ProviderInfo[]>([])
-  const [defaultModel, setDefaultModel] = useState<string>('')
-  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null)
-  const [ollamaLoading, setOllamaLoading] = useState(true)
-  const [ollamaRefreshing, setOllamaRefreshing] = useState(false)
-  const [pullingOllama, setPullingOllama] = useState(false)
+  const { t } = useI18n()
+  const {
+    accounts,
+    vendors,
+    defaultAccountId,
+    loading,
+    oauthFlow,
+    init,
+    createAccount,
+    updateAccount,
+    removeAccount,
+    setDefault,
+    validateKey,
+    getAccountKey,
+    startOAuth,
+    cancelOAuth,
+  } = useProviderStore()
+
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [showForm, setShowForm] = useState(false)
   const [testing, setTesting] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testError, setTestError] = useState<string | null>(null)
+  const [showKey, setShowKey] = useState(false)
 
+  useEffect(() => { void init() }, [init])
+
+  // Close dialog on OAuth success
+  const prevOAuthActive = React.useRef(oauthFlow.active)
   useEffect(() => {
-    void load()
-  }, [])
-
-  useEffect(() => {
-    if (!pullingOllama && !ollamaStatus?.downloading) return
-
-    const intervalId = window.setInterval(() => {
-      void refreshOllamaStatus()
-    }, 1000)
-
-    return () => window.clearInterval(intervalId)
-  }, [pullingOllama, ollamaStatus?.downloading])
-
-  async function load(): Promise<void> {
-    await refreshProviderState()
-    await refreshOllamaStatus({ initial: true })
-  }
-
-  async function refreshProviderState(): Promise<void> {
-    const [list, current] = await Promise.all([
-      window.clawpilot.provider.list(),
-      window.clawpilot.provider.getDefault(),
-    ])
-    setProviders(list)
-    setDefaultModel(current)
-  }
-
-  async function refreshOllamaStatus(options?: { initial?: boolean }): Promise<void> {
-    if (options?.initial) {
-      setOllamaLoading(true)
-    } else {
-      setOllamaRefreshing(true)
+    // Was active, now not active, and no error → success
+    if (prevOAuthActive.current && !oauthFlow.active && !oauthFlow.error && showForm) {
+      setShowForm(false)
+      setForm(EMPTY_FORM)
+      toast.success('OAuth 授权成功')
     }
-    const status = await window.clawpilot.ollama.status()
-    setOllamaStatus(status)
-    setPullingOllama(status.downloading)
-    if (status.recommendedInstalled) {
-      await refreshProviderState()
-    }
-    if (options?.initial) {
-      setOllamaLoading(false)
-    } else {
-      setOllamaRefreshing(false)
-    }
+    prevOAuthActive.current = oauthFlow.active
+  }, [oauthFlow.active, oauthFlow.error, showForm])
+
+  // Derive unconfigured vendors
+  const unconfiguredVendors = getUnconfiguredVendors(vendors, accounts)
+
+  /* ── Open forms ── */
+
+  function openVendor(vendor: ProviderDefinition): void {
+    const isOAuthDefault = vendor.isOAuth && vendor.defaultAuthMode !== 'api_key'
+    setForm({
+      accountId: vendor.id,
+      vendorId: vendor.id as ProviderType,
+      label: vendor.name,
+      baseUrl: vendor.providerConfig?.baseUrl ?? vendor.defaultBaseUrl ?? '',
+      apiKey: '',
+      apiProtocol: vendor.providerConfig?.api ?? 'openai-completions',
+      model: vendor.defaultModelId ?? '',
+      headers: vendor.providerConfig?.headers ? JSON.stringify(vendor.providerConfig.headers) : '',
+      isEditing: false,
+      vendor,
+      authMode: isOAuthDefault ? 'oauth' : 'api_key',
+      showAdvanced: false,
+    })
+    setTestError(null)
+    setShowKey(false)
+    setShowForm(true)
   }
 
-  async function handleSetDefault(model: string): Promise<void> {
-    setDefaultModel(model)
-    await window.clawpilot.provider.setDefault(model)
+  function openCustom(): void {
+    const customVendor = vendors.find((v) => v.id === 'custom')
+    setForm({
+      ...EMPTY_FORM,
+      vendor: customVendor ?? null,
+    })
+    setTestError(null)
+    setShowKey(false)
+    setShowForm(true)
   }
 
-  function applyPreset(label: string): void {
-    const p = PRESETS.find((x) => x.label === label)
-    if (!p) return
-    setForm((f) => ({
-      ...f,
-      name: p.name,
-      baseUrl: p.baseUrl,
-      api: p.api,
-      presetKey: label,
-    }))
+  async function openEdit(account: ProviderAccount): Promise<void> {
+    const vendor = getVendorForAccount(vendors, account) ?? null
+    const key = await getAccountKey(account.id)
+    setForm({
+      accountId: account.id,
+      vendorId: account.vendorId,
+      label: account.label,
+      baseUrl: account.baseUrl ?? vendor?.providerConfig?.baseUrl ?? '',
+      apiKey: key,
+      apiProtocol: account.apiProtocol ?? vendor?.providerConfig?.api ?? 'openai-completions',
+      model: account.model ?? '',
+      headers: account.headers ? JSON.stringify(account.headers) : '',
+      isEditing: true,
+      vendor,
+      authMode: account.authMode === 'api_key' ? 'api_key' : 'oauth',
+      showAdvanced: false,
+    })
+    setTestError(null)
+    setShowKey(false)
+    setShowForm(true)
   }
 
-  async function handleTest(): Promise<void> {
-    if (!form.baseUrl || !form.apiKey) return
-    setTesting(true)
-    setTestResult(null)
-    const res = await window.clawpilot.provider.test({ baseUrl: form.baseUrl, apiKey: form.apiKey })
-    setTesting(false)
-    if (res.ok) {
-      setTestResult({ ok: true, msg: `Connected · ${res.models?.slice(0, 3).join(', ')}` })
-    } else {
-      setTestResult({ ok: false, msg: res.error ?? `HTTP ${res.status}` })
-    }
+  /* ── Actions ── */
+
+  async function handleSetDefault(account: ProviderAccount): Promise<void> {
+    await setDefault(account.id)
+    toast.success(t('app.providers.modelSet'))
+  }
+
+  async function handleDelete(accountId: string): Promise<void> {
+    await removeAccount(accountId)
+    toast.success(t('app.providers.deleted'))
+  }
+
+  async function handleOAuthLogin(vendor: ProviderDefinition): Promise<void> {
+    const region = vendor.id === 'minimax-portal-cn' ? 'cn' as const : 'global' as const
+    await startOAuth(vendor.id, {
+      region,
+      accountId: vendor.id,
+      label: vendor.name,
+    })
   }
 
   async function handleSave(): Promise<void> {
-    if (!form.name || !form.baseUrl || !form.apiKey) return
-    setSaving(true)
-    const preset = PRESETS.find((p) => p.label === form.presetKey)
-    await window.clawpilot.provider.save({
-      name: form.name,
-      baseUrl: form.baseUrl,
-      apiKey: form.apiKey,
-      api: form.api || undefined,
-      models: preset?.models,
-    })
-    setSaving(false)
-    setShowForm(false)
-    setForm(EMPTY_FORM)
-    setTestResult(null)
-    await load()
-  }
+    if (form.authMode === 'api_key' && (!form.apiKey && !form.isEditing)) return
 
-  async function handleDelete(name: string): Promise<void> {
-    await window.clawpilot.provider.delete(name)
-    await load()
-  }
+    setTestError(null)
 
-  async function handlePullOllama(): Promise<void> {
-    setPullingOllama(true)
-    await refreshOllamaStatus()
-    try {
-      const result = await window.clawpilot.ollama.pullRecommended()
-      if (!result.ok) {
-        setPullingOllama(false)
+    // For API key auth, validate first
+    if (form.authMode === 'api_key' && form.apiKey) {
+      setTesting(true)
+      const result = await validateKey(form.vendorId, form.apiKey, {
+        baseUrl: form.baseUrl || undefined,
+        apiProtocol: form.apiProtocol,
+      })
+      setTesting(false)
+
+      if (!result.valid) {
+        setTestError(friendlyProviderError(result.error))
+        return
       }
+    }
+
+    setSaving(true)
+    try {
+      let parsedHeaders: Record<string, string> | undefined
+      if (form.headers.trim()) {
+        try {
+          parsedHeaders = JSON.parse(form.headers)
+        } catch {
+          setTestError('Headers 格式错误，请输入合法的 JSON')
+          setSaving(false)
+          return
+        }
+      }
+
+      if (form.isEditing) {
+        await updateAccount(form.accountId, {
+          label: form.label,
+          baseUrl: form.baseUrl || undefined,
+          apiProtocol: form.apiProtocol,
+          model: form.model || undefined,
+          headers: parsedHeaders,
+        }, form.apiKey || undefined)
+      } else {
+        await createAccount({
+          id: form.accountId || form.vendorId,
+          vendorId: form.vendorId,
+          label: form.label || form.vendor?.name || form.vendorId,
+          authMode: 'api_key',
+          baseUrl: form.baseUrl || undefined,
+          apiProtocol: form.apiProtocol,
+          model: form.model || undefined,
+          headers: parsedHeaders,
+          enabled: true,
+          isDefault: accounts.length === 0,
+        } as Omit<ProviderAccount, 'createdAt' | 'updatedAt'>, form.apiKey)
+      }
+
+      setShowForm(false)
+      setForm(EMPTY_FORM)
+      toast.success(t('app.providers.saved'))
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : String(err))
     } finally {
-      setPullingOllama(false)
-      await load()
+      setSaving(false)
     }
   }
 
-  async function handleOpenInstallPage(): Promise<void> {
-    await window.clawpilot.ollama.openInstallPage()
+  function closeForm(): void {
+    if (oauthFlow.active) {
+      void cancelOAuth()
+    }
+    setShowForm(false)
+    setForm(EMPTY_FORM)
+    setTestError(null)
   }
 
-  const ollamaProvider = providers.find((provider) => provider.name === 'ollama')
+  const isOAuthVendor = form.vendor?.isOAuth
+  const showApiKeySection = form.authMode === 'api_key' || !isOAuthVendor
 
   return (
-    <div className="flex flex-col h-full p-6 gap-5 overflow-y-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Providers</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Configure remote APIs and local fallback models</p>
-        </div>
-        <button
-          onClick={() => { setShowForm(true); setTestResult(null) }}
-          className="cp-btn cp-btn-primary px-4 py-2"
-        >
-          + Add Provider
-        </button>
-      </div>
+    <div className="cp-page max-w-4xl">
+      <h1 className="text-lg font-semibold text-foreground">{t('nav.providers')}</h1>
 
-      {/* Current Model selector */}
-      {providers.length > 0 && (
-        <div className="rounded-2xl bg-surface border border-border px-4 py-3 flex items-center gap-3">
-          <span className="text-xs text-muted-foreground shrink-0">Current Model</span>
-          <select
-            value={defaultModel}
-            onChange={(e) => void handleSetDefault(e.target.value)}
-            className="cp-select flex-1 bg-surface-2 px-3 py-2"
-          >
-            {defaultModel === '' && <option value="">— not set —</option>}
-            {providers.flatMap((p) =>
-              p.models.length > 0
-                ? p.models.map((m) => (
-                    <option key={`${p.name}/${m.id}`} value={`${p.name}/${m.id}`}>
-                      {p.name} / {m.name ?? m.id}
-                    </option>
-                  ))
-                : [<option key={p.name} value={p.name}>{p.name}</option>]
-            )}
-          </select>
+      {oauthFlow.error && !showForm && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          OAuth 授权失败: {oauthFlow.error}
         </div>
       )}
 
-      <div className="rounded-2xl bg-surface border border-border p-5 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-medium text-foreground">Local / Ollama</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Optional fallback model for offline or degraded network cases.
-            </p>
-          </div>
-          <span className="text-xs px-2 py-1 bg-surface-2 text-muted-foreground rounded-md border border-border font-mono">
-            qwen2.5:7b
-          </span>
-        </div>
-
-        {ollamaLoading || !ollamaStatus ? (
-          <div className="text-sm text-muted-foreground">Checking local Ollama runtime…</div>
-        ) : (
-          <>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <StatusPill label="Runtime" value={ollamaStatus.running ? 'Reachable' : 'Unavailable'} ok={ollamaStatus.running} />
-              <StatusPill
-                label="Model"
-                value={ollamaStatus.recommendedInstalled ? 'Ready' : 'Missing'}
-                ok={ollamaStatus.recommendedInstalled}
-              />
-              <StatusPill label="Known Models" value={String(ollamaStatus.availableModels.length)} ok={ollamaStatus.availableModels.length > 0} />
-            </div>
-
-            {!ollamaStatus.running && (
-              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 space-y-3">
-                <p className="text-sm text-warning">
-                  ClawPilot could not reach Ollama at <span className="font-mono">http://127.0.0.1:11434</span>.
-                  Install Ollama if needed, open it so the local API is running, then retry detection here.
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => void handleOpenInstallPage()}
-                    className="cp-btn px-4 py-2 bg-warning text-primary-foreground hover:bg-warning/90"
-                  >
-                    Open install page
-                  </button>
-                  <button
-                    onClick={() => void refreshOllamaStatus()}
-                    className="cp-btn cp-btn-muted px-4 py-2"
-                  >
-                    Retry detection
-                  </button>
-                  <a href={OLLAMA_INSTALL_URL} target="_blank" rel="noreferrer" className="text-sm text-warning underline underline-offset-2">
-                    Ollama docs
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {ollamaStatus.running && !ollamaStatus.recommendedInstalled && (
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => void handlePullOllama()}
-                  disabled={pullingOllama || ollamaStatus.downloading}
-                  className="cp-btn cp-btn-primary px-4 py-2"
-                >
-                  {pullingOllama || ollamaStatus.downloading ? 'Downloading…' : 'Download qwen2.5:7b'}
-                </button>
-                <p className="text-sm text-muted-foreground">
-                  This uses Ollama&apos;s local API and only adds the model as an optional provider. It will not replace your current default model.
-                </p>
-              </div>
-            )}
-
-            {ollamaStatus.running && !ollamaStatus.recommendedInstalled && (ollamaStatus.downloading || ollamaStatus.downloadProgress > 0) && (
-                <div className="space-y-2">
-                <div className="h-2 overflow-hidden rounded-full bg-surface-2 border border-border">
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-300"
-                    style={{ width: `${Math.max(4, ollamaStatus.downloadProgress)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Model download progress: {ollamaStatus.downloadProgress}%
-                </p>
-              </div>
-            )}
-
-            {ollamaStatus.running && ollamaStatus.recommendedInstalled && (
-              <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
-                qwen2.5:7b is ready in Ollama.
-                {ollamaProvider
-                  ? ' Select ollama / Qwen 2.5 7B from Current Model above when you want to use it.'
-                  : ' Refreshing provider configuration…'}
-              </div>
-            )}
-
-            {(ollamaStatus.downloadLog.length > 0 || ollamaStatus.error) && (
-              <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ollama Activity</span>
-                  <div className="flex items-center gap-3">
-                    {ollamaRefreshing && <span className="text-xs text-muted-foreground">Refreshing…</span>}
-                    {ollamaStatus.downloading && <span className="text-xs text-primary">Download in progress</span>}
-                  </div>
-                </div>
-                {ollamaStatus.error && (
-                  <p className="text-sm text-danger">{ollamaStatus.error}</p>
-                )}
-                {ollamaStatus.downloadLog.length > 0 && (
-                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5 text-foreground/80">
-                    {ollamaStatus.downloadLog.slice(-12).join('\n')}
-                  </pre>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Add form */}
-      {showForm && (
-        <div className="rounded-2xl bg-surface border border-border p-5 space-y-4">
-          <h2 className="text-sm font-medium text-foreground">New Provider</h2>
-
-          {/* Presets */}
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => applyPreset(p.label)}
-                className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
-                  form.presetKey === p.label
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : 'border-border text-muted-foreground hover:border-border-strong hover:text-foreground'
+      {/* Configured accounts */}
+      {accounts.length > 0 && (
+        <div className="space-y-2">
+          {[...accounts].sort((a, b) => {
+            if (a.id === defaultAccountId) return -1
+            if (b.id === defaultAccountId) return 1
+            return 0
+          }).map((account) => {
+            const isDefault = account.id === defaultAccountId
+            return (
+              <div
+                key={account.id}
+                className={`flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors ${
+                  isDefault ? 'border-primary/40' : 'border-border'
                 }`}
               >
-                {p.label}
+                <ProviderIcon vendorId={account.vendorId} />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {account.label}
+                    </span>
+                    {isDefault && (
+                      <span className="flex items-center gap-0.5 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <Star className="h-2.5 w-2.5 fill-primary" /> 默认
+                      </span>
+                    )}
+                    <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {authModeBadge(account.authMode)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {account.model && <span>{account.model} · </span>}
+                    {account.apiProtocol ?? 'openai-completions'}
+                    {account.baseUrl && <span> · {account.baseUrl}</span>}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1">
+                  {!isDefault && (
+                    <button
+                      onClick={() => void handleSetDefault(account)}
+                      className="p-2 text-muted-foreground transition-colors hover:text-primary"
+                      title="设为默认"
+                    >
+                      <Star className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => void openEdit(account)}
+                    className="p-2 text-muted-foreground transition-colors hover:text-foreground"
+                    title="编辑"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => void handleDelete(account.id)}
+                    className="p-2 text-muted-foreground transition-colors hover:text-destructive"
+                    title="删除"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Add more providers */}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">加载中...</p>
+      ) : (
+        <div>
+          <p className="mb-3 text-sm font-medium text-foreground">添加更多提供商</p>
+          <div className="grid grid-cols-4 gap-2">
+            {unconfiguredVendors.map((vendor) => (
+              <button
+                key={vendor.id}
+                onClick={() => openVendor(vendor)}
+                className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card"
+              >
+                <ProviderIcon vendorId={vendor.id} />
+                <div className="text-center">
+                  <p className="text-xs font-medium text-foreground">{vendor.name}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    {vendor.isOAuth && !vendor.supportsApiKey ? 'OAuth 登录' : '点击配置'}
+                  </p>
+                </div>
               </button>
             ))}
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="e.g. kimi" />
-            <Field label="API" value={form.api} onChange={(v) => setForm((f) => ({ ...f, api: v }))} placeholder="openai-completions" />
-            <Field label="Base URL" value={form.baseUrl} onChange={(v) => setForm((f) => ({ ...f, baseUrl: v }))} placeholder="https://api.moonshot.cn/v1" className="col-span-2" />
-            <Field label="API Key" value={form.apiKey} onChange={(v) => setForm((f) => ({ ...f, apiKey: v }))} placeholder="sk-..." type="password" className="col-span-2" />
+            {/* Custom provider */}
+            <button
+              onClick={openCustom}
+              className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-medium text-foreground">自定义</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">点击配置</p>
+              </div>
+            </button>
           </div>
+        </div>
+      )}
 
-          {testResult && (
-            <p className={`text-xs px-3 py-2 rounded-xl border ${
-              testResult.ok ? 'border-success/30 bg-success/10 text-success' : 'border-danger/30 bg-danger/10 text-danger'
-            }`}>
-              {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
-            </p>
+      {/* Add / Edit dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) closeForm() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {form.isEditing
+                ? `编辑 ${form.label || form.vendorId}`
+                : form.vendor && form.vendor.id !== 'custom'
+                  ? `配置 ${form.vendor.name}`
+                  : t('app.providers.addTitle')}
+            </DialogTitle>
+            <DialogDescription>
+              {form.vendor && !form.isEditing && form.vendor.id !== 'custom'
+                ? `输入你的 ${form.vendor.name} API Key 即可开始使用。`
+                : t('app.providers.addDesc')}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Auth mode toggle for OAuth vendors that also support API key */}
+          {isOAuthVendor && form.vendor?.supportsApiKey && !form.isEditing && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setForm((f) => ({ ...f, authMode: 'oauth' }))}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                  form.authMode === 'oauth'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                OAuth 登录
+              </button>
+              <button
+                onClick={() => setForm((f) => ({ ...f, authMode: 'api_key' }))}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                  form.authMode === 'api_key'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Key className="h-3.5 w-3.5" />
+                API Key
+              </button>
+            </div>
           )}
 
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => void handleTest()}
-              disabled={!form.baseUrl || !form.apiKey || testing}
-              className="cp-btn cp-btn-muted px-4 py-2"
-            >
-              {testing ? 'Testing…' : 'Test'}
-            </button>
-            <button
-              onClick={() => void handleSave()}
-              disabled={!form.name || !form.baseUrl || !form.apiKey || saving}
-              className="cp-btn cp-btn-primary px-4 py-2"
-            >
-              {saving ? 'Saving…' : 'Save & Restart'}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setTestResult(null) }}
-              className="cp-btn px-3 py-2 bg-transparent text-muted-foreground hover:text-foreground ml-auto"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Provider list */}
-      {providers.length === 0 && !showForm && (
-        <div className="flex flex-col items-center justify-center flex-1 text-center">
-          <p className="text-muted-foreground">No providers configured</p>
-          <p className="text-muted-foreground text-sm mt-1">Add an API key to start chatting</p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {providers.map((p) => (
-          <div key={p.name} className="flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{p.name}</p>
-              <p className="text-xs text-muted-foreground truncate mt-0.5">{p.baseUrl}</p>
+          {/* OAuth flow section */}
+          {isOAuthVendor && (form.authMode === 'oauth' || !form.vendor?.supportsApiKey) && !form.isEditing && (
+            <div className="flex flex-col items-center gap-3 py-4">
+              {oauthFlow.active ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    正在等待浏览器授权...
+                  </div>
+                  {oauthFlow.userCode && (
+                    <p className="text-xs text-muted-foreground">
+                      授权码: <span className="font-mono font-bold text-foreground">{oauthFlow.userCode}</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => form.vendor && void handleOAuthLogin(form.vendor)}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  <LogIn className="h-4 w-4" />
+                  使用 {form.vendor?.name} 登录
+                </button>
+              )}
+              {oauthFlow.error && (
+                <div className="w-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {oauthFlow.error}
+                </div>
+              )}
             </div>
-            {p.api && (
-              <span className="text-xs px-2 py-0.5 bg-surface-2 text-muted-foreground rounded-md border border-border font-mono">{p.api}</span>
-            )}
-            {p.name !== 'ollama' && (
+          )}
+
+          {/* API Key form */}
+          {showApiKeySection && (
+            <div className="space-y-3">
+              {/* Display name: show for custom or editing */}
+              {(form.vendorId === 'custom' || form.isEditing) && (
+                <FormField
+                  label="显示名称"
+                  value={form.label}
+                  onChange={(v) => setForm((f) => ({ ...f, label: v }))}
+                  placeholder="e.g. My Provider"
+                />
+              )}
+
+              {/* Account ID: only for custom new providers */}
+              {form.vendorId === 'custom' && !form.isEditing && (
+                <FormField
+                  label="标识符"
+                  value={form.accountId}
+                  onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+                  placeholder="e.g. my-provider"
+                />
+              )}
+
+              {/* API Key */}
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t('app.providers.fieldKey')}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={form.apiKey}
+                    onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                    placeholder={form.isEditing ? '重新输入以更新' : (form.vendor?.placeholder ?? 'sk-...')}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-9 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Base URL: show for custom, or vendors that opt in */}
+              {(form.vendorId === 'custom' || form.vendor?.showBaseUrl) && (
+                <FormField
+                  label={t('app.providers.fieldUrl')}
+                  value={form.baseUrl}
+                  onChange={(v) => setForm((f) => ({ ...f, baseUrl: v }))}
+                  placeholder={form.vendor?.defaultBaseUrl ?? 'https://api.example.com/v1'}
+                />
+              )}
+
+              {/* Model ID: show for custom, or vendors that opt in */}
+              {(form.vendorId === 'custom' || form.vendor?.showModelId) && (
+                <FormField
+                  label="模型 ID"
+                  value={form.model}
+                  onChange={(v) => setForm((f) => ({ ...f, model: v }))}
+                  placeholder={form.vendor?.modelIdPlaceholder ?? 'model-id'}
+                />
+              )}
+
+              {/* Protocol selector: show for custom provider */}
+              {form.vendorId === 'custom' && (
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    {t('app.providers.fieldApi')}
+                  </label>
+                  <div className="flex gap-1">
+                    {PROTOCOL_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setForm((f) => ({ ...f, apiProtocol: opt.value }))}
+                        className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${
+                          form.apiProtocol === opt.value
+                            ? 'bg-primary text-primary-foreground'
+                            : 'border border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced toggle for custom provider */}
+              {form.vendorId === 'custom' && (
+                <div>
+                  <button
+                    onClick={() => setForm((f) => ({ ...f, showAdvanced: !f.showAdvanced }))}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {form.showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    高级配置
+                  </button>
+                  {form.showAdvanced && (
+                    <div className="mt-2 space-y-3">
+                      <FormField
+                        label="自定义 Headers (JSON)"
+                        value={form.headers}
+                        onChange={(v) => setForm((f) => ({ ...f, headers: v }))}
+                        placeholder='{"X-Custom-Header": "value"}'
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {testError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {testError}
+            </div>
+          )}
+
+          {/* Save button (only for API key mode) */}
+          {showApiKeySection && (
+            <div className="flex justify-end pt-1">
               <button
-                onClick={() => void handleDelete(p.name)}
-                className="text-xs text-danger hover:text-danger/90 transition-colors px-2"
+                onClick={() => void handleSave()}
+                disabled={
+                  (form.vendorId === 'custom' && !form.accountId) ||
+                  (!form.apiKey && !form.isEditing) ||
+                  testing ||
+                  saving
+                }
+                className="rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
-                Delete
+                {testing ? t('app.providers.testing') : saving ? t('app.providers.saving') : t('app.providers.save')}
               </button>
-            )}
-          </div>
-        ))}
-      </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function StatusPill({ label, value, ok }: { label: string; value: string; ok: boolean }): React.ReactElement {
-  return (
-    <div className="rounded-xl border border-border bg-surface-2 px-3 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-sm mt-1 ${ok ? 'text-success' : 'text-foreground/80'}`}>{value}</p>
-    </div>
-  )
-}
-
-function Field({
-  label, value, onChange, placeholder, type = 'text', className = '',
+function FormField({
+  label, value, onChange, placeholder, type = 'text', disabled = false,
 }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; className?: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: string
+  disabled?: boolean
 }): React.ReactElement {
   return (
-    <div className={className}>
-      <label className="block text-xs text-muted-foreground mb-1">{label}</label>
+    <div>
+      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-surface-2 border border-border focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors"
+        disabled={disabled}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/50 disabled:opacity-50"
       />
     </div>
   )
