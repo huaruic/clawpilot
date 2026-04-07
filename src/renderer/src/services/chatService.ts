@@ -61,6 +61,10 @@ export async function loadSessions(
   return normalizeSessions(raw, sessionLabels)
 }
 
+export async function resetSession(sessionKey: string): Promise<void> {
+  await getApi().chat.resetSession({ sessionKey })
+}
+
 export async function deleteSession(sessionKey: string): Promise<void> {
   await getApi().chat.deleteSession({ sessionKey })
 }

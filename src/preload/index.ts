@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('chat:abort', params),
     deleteSession: (params: { sessionKey: string }): Promise<unknown> =>
       ipcRenderer.invoke('chat:deleteSession', params),
+    resetSession: (params: { sessionKey: string }): Promise<unknown> =>
+      ipcRenderer.invoke('chat:resetSession', params),
     agents: (): Promise<unknown> =>
       ipcRenderer.invoke('chat:agents'),
     onChunk: (cb: (chunk: unknown) => void): (() => void) => {
@@ -195,6 +197,19 @@ contextBridge.exposeInMainWorld('clawpilot', {
       ipcRenderer.invoke('skills:setEnabled', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
+  },
+
+  // ── Dashboard (Usage Analytics) ─────────────────────────────────────
+  dashboard: {
+    getUsage: (params?: { since?: number }): Promise<unknown> =>
+      ipcRenderer.invoke('dashboard:getUsage', params ?? {}),
+    refresh: (): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('dashboard:refresh'),
+    onUpdated: (cb: () => void): (() => void) => {
+      const handler = (): void => cb()
+      ipcRenderer.on('dashboard:updated', handler)
+      return () => ipcRenderer.removeListener('dashboard:updated', handler)
+    },
   },
 
   // ── Diagnostics ──────────────────────────────────────────────────────

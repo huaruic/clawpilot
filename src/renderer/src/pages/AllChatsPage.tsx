@@ -33,9 +33,9 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
 
   // Ensure sessions are fresh when this page mounts or list version changes
   useEffect(() => {
-    if (snapshot.status !== 'RUNNING') return
+    if (snapshot.status !== 'RUNNING' || !snapshot.wsConnected) return
     void fetchSessions()
-  }, [snapshot.status, snapshot.startedAt, sessionListVersion, fetchSessions])
+  }, [snapshot.status, snapshot.startedAt, snapshot.wsConnected, sessionListVersion, fetchSessions])
 
   const mergedSessions = React.useMemo(() => {
     let base = sessions

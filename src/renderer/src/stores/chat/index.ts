@@ -61,6 +61,7 @@ interface ChatStore {
   // ── Message Actions ──
   hydrateSession: (sessionKey: string, entries: ChatMessage[]) => void
   addUserMessage: (sessionKey: string, content: string, attachments?: AttachedFile[]) => void
+  addSystemMessage: (sessionKey: string, content: string) => void
   applyChunk: (chunk: ChatEvent) => void
   clearSession: (sessionKey: string) => void
 
@@ -162,6 +163,22 @@ export const useChatStore = create<ChatStore>()(
               : {}),
           }
         })
+      },
+
+      addSystemMessage: (sessionKey, content) => {
+        const msg: ChatMessage = {
+          id: `system-${Date.now()}`,
+          role: 'system',
+          content,
+          state: 'done',
+          timestamp: Date.now(),
+        }
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [sessionKey]: [...(s.messages[sessionKey] ?? []), msg],
+          },
+        }))
       },
 
       applyChunk: (chunk: ChatEvent) => {

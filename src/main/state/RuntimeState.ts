@@ -14,6 +14,7 @@ export interface RuntimeSnapshot {
   lastFailureAt?: number
   lastHealthAt?: number
   healthStatus?: RuntimeHealth
+  wsConnected?: boolean
 }
 
 type ChangeHandler = (snap: RuntimeSnapshot) => void
@@ -65,6 +66,14 @@ export class RuntimeState {
       ...this._snapshot,
       healthStatus: status,
       lastHealthAt,
+    }
+    this.emit()
+  }
+
+  setWsConnected(connected: boolean): void {
+    this._snapshot = {
+      ...this._snapshot,
+      wsConnected: connected,
     }
     this.emit()
   }

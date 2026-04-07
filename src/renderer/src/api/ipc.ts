@@ -31,6 +31,7 @@ export interface RuntimeSnapshot {
   lastFailureAt?: number
   lastHealthAt?: number
   healthStatus?: RuntimeHealth
+  wsConnected?: boolean
 }
 
 // ChatEvent is the canonical type — re-exported from types/chat.ts
@@ -168,6 +169,7 @@ export interface ClawPilotAPI {
     sessions: () => Promise<unknown>
     abort: (params: { sessionKey: string; runId?: string }) => Promise<unknown>
     deleteSession: (params: { sessionKey: string }) => Promise<unknown>
+    resetSession: (params: { sessionKey: string }) => Promise<unknown>
     agents: () => Promise<unknown>
     onChunk: (cb: (chunk: ChatEvent) => void) => () => void
   }
@@ -275,6 +277,11 @@ export interface ClawPilotAPI {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
+  }
+  dashboard: {
+    getUsage: (params?: { since?: number }) => Promise<import('../types/dashboard').UsageStoreData>
+    refresh: () => Promise<{ ok: boolean; error?: string }>
+    onUpdated: (cb: () => void) => () => void
   }
   diagnostics: {
     run: () => Promise<DiagnosticReport>

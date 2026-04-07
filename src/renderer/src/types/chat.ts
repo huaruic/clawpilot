@@ -59,7 +59,7 @@ export interface AttachmentPayload {
 
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
   toolCalls?: ToolCall[]
   thinkingBlocks?: ThinkingBlock[]
