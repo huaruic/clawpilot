@@ -6,11 +6,12 @@ import { WsGatewayClient } from './services/WsGatewayClient'
 import { registerAllIpc } from './ipc/index'
 import { registerChatEventForwarding } from './ipc/chat.ipc'
 import { mainLogger } from './utils/logger'
-import { ensureOpenClawBaseConfig, inspectOpenClawSetup, waitForGatewayToken } from './services/OpenClawConfigWriter'
+import { inspectOpenClawSetup, readGatewayToken } from './services/OpenClawConfigWriter'
 import { syncAllProvidersToRuntime, syncRoutingProfilesAfterProviderChange } from './services/ProviderRuntimeSync'
 import { ensureAllChannelPlugins } from './services/ChannelConfigService'
 import { deviceOAuthManager } from './services/DeviceOAuthManager'
 import { browserOAuthManager } from './services/BrowserOAuthManager'
+import { syncUsageFromGateway } from './ipc/dashboard.ipc'
 
 // Keep dev and packaged builds on the same userData root.
 app.setName('ClawPilot')
@@ -22,11 +23,81 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock()
 const state = new RuntimeState()
 const processManager = new OpenClawProcessManager(state)
 let wsClient: WsGatewayClient | null = null
-let lastRuntimeStatus = state.snapshot.status
 let wsConnectInFlight = false
 
 async function refreshSetup(): Promise<void> {
   state.setSetup(await inspectOpenClawSetup())
+}
+
+// ── WS connection with retry ──────────────────────────────────────
+
+const WS_MAX_RETRIES = 10
+const WS_BASE_DELAY_MS = 1000
+const WS_MAX_DELAY_MS = 5000
+
+async function connectWsWithRetry(port: number): Promise<void> {
+  for (let attempt = 1; attempt <= WS_MAX_RETRIES; attempt++) {
+    if (state.snapshot.status !== 'STARTING') return // process died or was stopped
+
+    // Read token (may not exist yet during bootstrap)
+    const token = await readGatewayToken()
+    if (!token && attempt < WS_MAX_RETRIES) {
+      mainLogger.info(`[Main] Gateway token not ready (attempt ${attempt}/${WS_MAX_RETRIES}), retrying...`)
+      await sleep(WS_BASE_DELAY_MS)
+      continue
+    }
+
+    const client = new WsGatewayClient(port)
+    try {
+      await client.connect()
+      wsClient = client
+      mainLogger.info('[Main] WsGatewayClient connected')
+
+      // Transition to RUNNING — this is the single source of truth
+      state.transition('RUNNING', {
+        pid: processManager.pid,
+        startedAt: Date.now(),
+        port,
+      })
+      state.setWsConnected(true)
+      state.setHealth('ok', Date.now())
+
+      // Post-connection setup
+      registerChatEventForwarding(client, () => mainWindow)
+      processManager.startHealthMonitor()
+
+      syncUsageFromGateway(client, () => mainWindow).catch((err) => {
+        mainLogger.warn('[Main] Initial usage sync failed:', String(err))
+      })
+
+      let sessionsChangedTimer: ReturnType<typeof setTimeout> | null = null
+      client.on('sessions.changed', () => {
+        if (sessionsChangedTimer) clearTimeout(sessionsChangedTimer)
+        sessionsChangedTimer = setTimeout(() => {
+          sessionsChangedTimer = null
+          syncUsageFromGateway(client!, () => mainWindow).catch((err) => {
+            mainLogger.warn('[Main] sessions.changed usage sync failed:', String(err))
+          })
+        }, 500)
+      })
+
+      return // success
+    } catch (err) {
+      client.disconnect()
+      const delay = Math.min(WS_BASE_DELAY_MS * Math.pow(1.5, attempt - 1), WS_MAX_DELAY_MS)
+      mainLogger.warn(`[Main] WS connect failed (attempt ${attempt}/${WS_MAX_RETRIES}): ${String(err)}, retrying in ${Math.round(delay)}ms`)
+      await sleep(delay)
+    }
+  }
+
+  // All retries exhausted
+  mainLogger.error('[Main] WS connection failed after all retries')
+  state.transition('ERROR', { error: 'WebSocket connection failed after all retries' })
+  state.setFailure('ws_connect_failed', 'WebSocket connection failed after all retries')
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function createWindow(): BrowserWindow {
@@ -73,19 +144,6 @@ if (!gotSingleInstanceLock) {
 
 app.whenReady().then(async () => {
   mainLogger.info('App ready')
-  await ensureOpenClawBaseConfig()
-
-  // Sync provider accounts from electron-store to openclaw.json on startup.
-  // Without this, models.providers can be empty after a restart, leaving the
-  // gateway with no LLM to generate responses for channel messages.
-  try {
-    await syncAllProvidersToRuntime()
-    await syncRoutingProfilesAfterProviderChange()
-    await ensureAllChannelPlugins()
-    mainLogger.info('Provider, routing, and channel plugins synced on startup')
-  } catch (err) {
-    mainLogger.warn('Failed to sync on startup:', err)
-  }
 
   await refreshSetup()
   const win = createWindow()
@@ -103,25 +161,29 @@ app.whenReady().then(async () => {
     },
   })
 
-  // Connect WsGatewayClient when gateway becomes RUNNING
-  state.onChange(async (snap) => {
-    const statusChanged = snap.status !== lastRuntimeStatus
-    lastRuntimeStatus = snap.status
+  // Background sync — don't block startup
+  void (async () => {
+    try {
+      await syncAllProvidersToRuntime()
+      await syncRoutingProfilesAfterProviderChange()
+      await ensureAllChannelPlugins()
+      mainLogger.info('Provider, routing, and channel plugins synced')
+    } catch (err) {
+      mainLogger.warn('Background sync failed:', err)
+    }
+  })()
 
-    if (snap.status === 'RUNNING' && statusChanged) {
+  // WS connection when process is spawned, cleanup on stop/error
+  let lastStatus = state.snapshot.status
+  state.onChange(async (snap) => {
+    const statusChanged = snap.status !== lastStatus
+    lastStatus = snap.status
+
+    if (snap.status === 'STARTING' && statusChanged) {
       if (wsClient?.isConnected || wsConnectInFlight) return
       wsConnectInFlight = true
-      await refreshSetup()
-      await waitForGatewayToken()
-      const client = new WsGatewayClient(snap.port)
-      wsClient = client
       try {
-        await client.connect()
-        mainLogger.info('[Main] WsGatewayClient connected')
-        registerChatEventForwarding(client, () => mainWindow)
-      } catch (err) {
-        mainLogger.error('[Main] WsGatewayClient connect failed:', String(err))
-        wsClient = null
+        await connectWsWithRetry(processManager.port)
       } finally {
         wsConnectInFlight = false
       }
@@ -131,7 +193,7 @@ app.whenReady().then(async () => {
       }
       wsClient = null
       wsConnectInFlight = false
-      await refreshSetup()
+      state.setWsConnected(false)
     }
   })
 

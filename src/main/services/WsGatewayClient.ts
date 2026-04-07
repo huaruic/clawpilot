@@ -18,7 +18,7 @@ type EventHandler = (payload: unknown) => void
 const CLIENT_ID = 'cli'
 const CLIENT_MODE = 'cli'
 const ROLE = 'operator'
-const SCOPES = ['operator.read', 'operator.write']
+const SCOPES = ['operator.read', 'operator.write', 'operator.admin']
 
 export class WsGatewayClient {
   private ws: WebSocket | null = null

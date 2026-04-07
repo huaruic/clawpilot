@@ -8,7 +8,7 @@ import { MessageBubble } from '../components/chat/MessageBubble'
 import { ThinkingIndicator } from '../components/chat/ThinkingIndicator'
 import { useChatStreamSubscription, useAbortRun } from '../hooks/useChatStream'
 import { useChatStore, startSafetyTimeout } from '../stores/chat'
-import { loadHistory, sendMessage as sendMessageRpc } from '../services/chatService'
+import { loadHistory, sendMessage as sendMessageRpc, resetSession } from '../services/chatService'
 import type { ChatMessage } from '../types'
 import { useRuntimeStore } from '../stores/runtimeStore'
 import { useProviderStore } from '../stores/providerStore'
@@ -19,7 +19,7 @@ import type { ProviderAccount } from '../../../shared/providers/types'
 /* ── Turn grouping ── */
 
 interface Turn {
-  user: ChatMessage
+  user?: ChatMessage
   assistant?: ChatMessage
 }
 
@@ -28,12 +28,44 @@ function groupIntoTurns(messages: ChatMessage[]): Turn[] {
   for (const msg of messages) {
     if (msg.role === 'user') {
       turns.push({ user: msg })
-    } else if (msg.role === 'assistant' && turns.length > 0) {
-      turns[turns.length - 1].assistant = msg
+    } else if (msg.role === 'assistant') {
+      if (turns.length === 0 || turns[turns.length - 1].assistant) {
+        // No preceding user message or previous turn already has an assistant message
+        turns.push({ assistant: msg })
+      } else {
+        turns[turns.length - 1].assistant = msg
+      }
     }
   }
   return turns
 }
+
+/* ── Segment messages by system dividers ── */
+
+type Segment = { type: 'turns'; turns: Turn[] } | { type: 'system'; message: ChatMessage }
+
+function segmentMessages(messages: ChatMessage[]): Segment[] {
+  const segments: Segment[] = []
+  let buffer: ChatMessage[] = []
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      if (buffer.length) segments.push({ type: 'turns', turns: groupIntoTurns(buffer) })
+      buffer = []
+      segments.push({ type: 'system', message: msg })
+    } else {
+      buffer.push(msg)
+    }
+  }
+  if (buffer.length) segments.push({ type: 'turns', turns: groupIntoTurns(buffer) })
+  return segments
+}
+
+/* ── Slash commands ── */
+
+const SLASH_COMMANDS = [
+  { command: '/new', descKey: 'app.chat.cmdNewDesc' as const },
+  { command: '/clear', descKey: 'app.chat.cmdClearDesc' as const },
+]
 
 /* ── greeting helper ── */
 
@@ -158,9 +190,30 @@ function InputBar({
   onSelectModel: (accountId: string) => void
 }): React.ReactElement {
   const [isComposing, setIsComposing] = useState(false)
+  const { t: tCmd } = useI18n()
+  const filteredCommands = value.startsWith('/')
+    ? SLASH_COMMANDS.filter((cmd) => cmd.command.startsWith(value) && value.length <= 6)
+    : []
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+    <div className="relative rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_24px_-4px_rgba(0,0,0,0.1)] focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all duration-300">
+      {/* Slash command popup */}
+      {filteredCommands.length > 0 && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden z-50">
+          {filteredCommands.map((cmd) => (
+            <button
+              key={cmd.command}
+              onClick={() => {
+                onChange(cmd.command)
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-foreground/[0.05] transition-colors"
+            >
+              <span className="text-sm font-mono font-medium text-foreground">{cmd.command}</span>
+              <span className="text-xs text-muted-foreground">{tCmd(cmd.descKey)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
         rows={1}
         value={value}
@@ -179,16 +232,16 @@ function InputBar({
       />
       <div className="flex items-center justify-between px-3 pb-3">
         <div className="flex items-center gap-0.5">
-          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Plus className="h-[18px] w-[18px]" />
           </button>
-          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Paperclip className="h-[18px] w-[18px]" />
           </button>
-          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Globe className="h-[18px] w-[18px]" />
           </button>
-          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Mic className="h-[18px] w-[18px]" />
           </button>
         </div>
@@ -201,7 +254,7 @@ function InputBar({
           <button
             onClick={onSend}
             disabled={disabled || !value.trim()}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+            className={`clickable flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 shadow-sm border border-black/10 dark:border-white/5 ${
               value.trim()
                 ? 'bg-foreground text-card hover:bg-foreground/90'
                 : 'bg-muted text-muted-foreground'
@@ -297,6 +350,9 @@ function WelcomeView({
             </span>
           </div>
           <QuickStartGrid onSelect={(prompt) => setInput(prompt)} />
+          <p className="mt-4 text-center text-[11px] text-muted-foreground/50">
+            {t('app.chat.slashHint')}
+          </p>
         </div>
       </div>
     </div>
@@ -331,7 +387,9 @@ function ChatView({
   const currentTurnRef = useRef<HTMLDivElement | null>(null)
   const prevTurnCountRef = useRef(0)
 
-  const turns = groupIntoTurns(activeMessages)
+  const segments = segmentMessages(activeMessages)
+  // Collect all turns across segments for scroll tracking
+  const allTurns = segments.flatMap((s) => (s.type === 'turns' ? s.turns : []))
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const userScrolledUpRef = useRef(false)
@@ -351,7 +409,7 @@ function ChatView({
 
   // Scroll to bottom when a new turn appears after user sends
   useEffect(() => {
-    if (pendingScrollRef.current && turns.length > prevTurnCountRef.current) {
+    if (pendingScrollRef.current && allTurns.length > prevTurnCountRef.current) {
       pendingScrollRef.current = false
       userScrolledUpRef.current = false
       requestAnimationFrame(() => {
@@ -359,8 +417,8 @@ function ChatView({
         if (el) el.scrollTop = el.scrollHeight
       })
     }
-    prevTurnCountRef.current = turns.length
-  }, [turns.length, pendingScrollRef])
+    prevTurnCountRef.current = allTurns.length
+  }, [allTurns.length, pendingScrollRef])
 
   // Auto-scroll to bottom during streaming unless user scrolled up
   useEffect(() => {
@@ -371,38 +429,55 @@ function ChatView({
     })
   }, [isStreaming, activeMessages])
 
+  // Find the very last turn across all segments for thinking indicator
+  const lastTurn = allTurns.length > 0 ? allTurns[allTurns.length - 1] : undefined
+
   return (
     <div className="flex h-full flex-col">
       {/* Messages — scroll container */}
       <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[680px] space-y-4 px-6 py-6">
-            {turns.map((turn, i) => {
-              const isLastTurn = i === turns.length - 1
-              return (
-                <div
-                  key={turn.user.id}
-                  ref={isLastTurn ? currentTurnRef : undefined}
-                  className="space-y-4"
-                >
-                  {/* User message */}
-                  <div className="animate-fade-in">
-                    <MessageBubble message={turn.user} />
+            {segments.map((segment) => {
+              if (segment.type === 'system') {
+                return (
+                  <div key={segment.message.id} className="flex items-center gap-3 py-4">
+                    <div className="flex-1 border-t border-border/50" />
+                    <span className="text-xs text-muted-foreground/60">{segment.message.content}</span>
+                    <div className="flex-1 border-t border-border/50" />
                   </div>
-                  {/* Assistant message */}
-                  {turn.assistant && (
-                    <div className="animate-fade-in">
-                      <MessageBubble message={turn.assistant} />
-                    </div>
-                  )}
-                  {/* Thinking indicator when waiting for first response in last turn */}
-                  {isLastTurn && isStreaming && !turn.assistant && (
-                    <ThinkingIndicator startTime={turn.user.timestamp} />
-                  )}
-                  {isLastTurn && isStreaming && turn.assistant && shouldShowThinkingIndicator(activeMessages) && (
-                    <ThinkingIndicator startTime={turn.assistant.timestamp} />
-                  )}
-                </div>
-              )
+                )
+              }
+              return segment.turns.map((turn, index) => {
+                const isLastTurn = turn === lastTurn
+                const turnKey = turn.user?.id ?? turn.assistant?.id ?? `turn-${index}`
+                return (
+                  <div
+                    key={turnKey}
+                    ref={isLastTurn ? currentTurnRef : undefined}
+                    className="space-y-4"
+                  >
+                    {/* User message */}
+                    {turn.user && (
+                      <div className="animate-fade-in">
+                        <MessageBubble message={turn.user} />
+                      </div>
+                    )}
+                    {/* Assistant message */}
+                    {turn.assistant && (
+                      <div className="animate-fade-in">
+                        <MessageBubble message={turn.assistant} />
+                      </div>
+                    )}
+                    {/* Thinking indicator when waiting for first response in last turn */}
+                    {isLastTurn && isStreaming && turn.user && !turn.assistant && (
+                      <ThinkingIndicator startTime={turn.user.timestamp} />
+                    )}
+                    {isLastTurn && isStreaming && turn.assistant && shouldShowThinkingIndicator(activeMessages) && (
+                      <ThinkingIndicator startTime={turn.assistant.timestamp} />
+                    )}
+                  </div>
+                )
+              })
             })}
         </div>
       </div>
@@ -472,7 +547,7 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
 
   const { snapshot } = useRuntimeStore()
   const { accounts, defaultAccountId, init: initProviders, setDefault: setDefaultProvider } = useProviderStore()
-  const { activeSession, hydrateSession, messages, streaming, bumpSessionList, newSession } = useChatStore()
+  const { activeSession, hydrateSession, messages, streaming, bumpSessionList, newSession, clearSession } = useChatStore()
 
   const [historyLoading, setHistoryLoading] = useState(false)
   const [input, setInput] = useState('')
@@ -500,7 +575,7 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
   // re-triggers a history fetch that overwrites the live streaming state, causing
   // flickering and loss of real-time data.
   useEffect(() => {
-    if (snapshot.status !== 'RUNNING' || !activeSession) return
+    if (snapshot.status !== 'RUNNING' || !snapshot.wsConnected || !activeSession) return
     // Skip reload if we already have messages for this session (e.g. mid-stream)
     if ((messages[activeSession]?.length ?? 0) > 0) return
     let cancelled = false
@@ -515,7 +590,7 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
 
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSession, snapshot.status, snapshot.startedAt])
+  }, [activeSession, snapshot.status, snapshot.startedAt, snapshot.wsConnected])
 
   const needsSetup = !snapshot.setup.hasProvider || !snapshot.setup.hasDefaultModel
   const isStarting = !needsSetup && (snapshot.status === 'STARTING' || snapshot.status === 'UPDATING')
@@ -524,6 +599,23 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
   async function handleSend(): Promise<void> {
     const text = input.trim()
     if (!text || isStreaming) return
+
+    // ── Slash command interception ──
+    if (text === '/new') {
+      setInput('')
+      newSession('default')
+      return
+    }
+    if (text === '/clear') {
+      setInput('')
+      setSendError(null)
+      clearSession(activeSession)
+      resetSession(activeSession).catch((err) => {
+        setSendError(err instanceof Error ? err.message : String(err))
+      })
+      return
+    }
+
     setSendError(null)
     setInput('')
     pendingScrollRef.current = true
@@ -561,7 +653,8 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
 
   // messages[activeSession] === undefined means never loaded; [] means hydrated (new or empty)
   const messagesNotLoaded = messages[activeSession] === undefined
-  const hasMessages = activeMessages.length > 0 || (historyLoading && messagesNotLoaded)
+  // Show chat view when: there are messages, OR history is being / needs to be loaded
+  const hasMessages = activeMessages.length > 0 || (isReady && messagesNotLoaded)
 
   return (
     <div className="flex h-full">
