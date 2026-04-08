@@ -4,6 +4,7 @@ import {
   AlertTriangle, Loader2, Check,
   Code2, FileText, Zap, Globe2,
 } from 'lucide-react'
+import { CatMascot } from '../components/chat/CatMascot'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { ThinkingIndicator } from '../components/chat/ThinkingIndicator'
 import { useChatStreamSubscription, useAbortRun } from '../hooks/useChatStream'
@@ -196,7 +197,13 @@ function InputBar({
     : []
 
   return (
-    <div className="relative rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_24px_-4px_rgba(0,0,0,0.1)] focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all duration-300">
+    <div className="relative group">
+      {/* Peeking Cat */}
+      <div className="absolute -top-10 left-10 pointer-events-none z-10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500">
+        <CatMascot mode="peeking" />
+      </div>
+
+      <div className="relative rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_24px_-4px_rgba(0,0,0,0.1)] focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all duration-300">
       {/* Slash command popup */}
       {filteredCommands.length > 0 && (
         <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden z-50">
@@ -265,11 +272,11 @@ function InputBar({
         </div>
       </div>
     </div>
+    </div>
   )
 }
 
 /* ── Quick Start Grid ── */
-
 function QuickStartGrid({ onSelect }: { onSelect: (prompt: string) => void }): React.ReactElement {
   const { t } = useI18n()
 
@@ -326,6 +333,9 @@ function WelcomeView({
   return (
     <div className="flex h-full items-center justify-center px-4">
       <div className="flex w-full max-w-[640px] flex-col items-center">
+        <div className="mb-6">
+          <CatMascot mode="lounging" />
+        </div>
         <h1 className="mb-8 text-[48px] font-semibold leading-tight tracking-tight text-foreground">
           {greeting}
         </h1>
@@ -458,13 +468,13 @@ function ChatView({
                   >
                     {/* User message */}
                     {turn.user && (
-                      <div className="animate-fade-in">
+                      <div>
                         <MessageBubble message={turn.user} />
                       </div>
                     )}
                     {/* Assistant message */}
                     {turn.assistant && (
-                      <div className="animate-fade-in">
+                      <div>
                         <MessageBubble message={turn.assistant} />
                       </div>
                     )}

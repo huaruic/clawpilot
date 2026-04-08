@@ -191,8 +191,7 @@ export function PersonaPage(): React.ReactElement {
             <button
               key={tmpl.id}
               onClick={() => update({ soul: t(tmpl.descKey) })}
-              className="btn-active-scale flex flex-col items-start gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/50 card-hover animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className="btn-active-scale flex flex-col items-start gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/50 card-hover"
             >
               <IconBox><tmpl.icon className="h-4 w-4 text-primary" /></IconBox>
               <div>

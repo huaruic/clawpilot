@@ -24,8 +24,8 @@ import slackIcon from '../assets/channels/slack.svg'
 
 // --- Helpers ---
 
-function getChannelsApi(): Window['clawpilot']['channels'] {
-  const api = window.clawpilot?.channels
+function getChannelsApi(): Window['catclaw']['channels'] {
+  const api = window.catclaw?.channels
   if (!api) throw new Error('Channels API is not available.')
   return api
 }
@@ -111,8 +111,7 @@ export function ChannelsPage(): React.ReactElement {
               key={type}
               onClick={() => !soon && setSelectedChannel(type)}
               disabled={soon}
-              className={`btn-active-scale ${`group relative flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-6 transition-colors card-hover animate-fade-in ${soon ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/40 hover:bg-card/80'}`}`}
-              style={{ animationDelay: `${index * 50}ms` }}
+              className={`btn-active-scale ${`group relative flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-6 transition-colors card-hover ${soon ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/40 hover:bg-card/80'}`}`}
             >
               {configured && !soon && (
                 <div className="absolute right-2 top-2">

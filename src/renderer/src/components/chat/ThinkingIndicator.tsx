@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { CatMascot } from './CatMascot'
 
 export function ThinkingIndicator({ startTime }: { startTime?: number }): React.ReactElement {
   const [elapsed, setElapsed] = useState(0)
@@ -14,8 +15,8 @@ export function ThinkingIndicator({ startTime }: { startTime?: number }): React.
   const timeStr = elapsed < 10 ? `${elapsed.toFixed(1)}s` : `${Math.round(elapsed)}s`
 
   return (
-    <div className="flex items-center gap-2.5 py-2 px-1">
-      <div className="h-2 w-2 rounded-full bg-primary/60 animate-pulse" />
+    <div className="flex items-center gap-3 py-2 px-1">
+      <CatMascot mode="wagging" className="scale-75 -mb-2" />
       <span className="text-[12px] font-mono text-muted-foreground/60 tabular-nums">
         {timeStr}
       </span>

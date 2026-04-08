@@ -481,8 +481,7 @@ export function ProvidersPage(): React.ReactElement {
               <button
                 key={vendor.id}
                 onClick={() => openVendor(vendor)}
-                className="btn-active-scale flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card card-hover animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
+                className="btn-active-scale flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card card-hover"
               >
                 <ProviderIcon vendorId={vendor.id} />
                 <div className="text-center">

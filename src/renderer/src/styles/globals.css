@@ -273,20 +273,14 @@ button:active:not(:disabled), .cp-btn:active:not(:disabled) {
   40% { opacity: 1; transform: scale(1.2); }
 }
 
-/* Streaming block cursor */
-.streaming-content > *:last-child::after {
-  content: "▋";
-  display: inline-block;
-  margin-left: 6px;
-  vertical-align: baseline;
-  animation: cursor-blink 1s step-end infinite;
-  color: hsl(var(--primary) / 0.8);
-  font-family: var(--font-mono);
+/* Streaming content fade-in effect (removed block cursor) */
+.streaming-content > *:last-child {
+  animation: stream-fade-in 0.3s ease-out forwards;
 }
 
-@keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+@keyframes stream-fade-in {
+  0% { opacity: 0.4; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Breathing thinking indicator */

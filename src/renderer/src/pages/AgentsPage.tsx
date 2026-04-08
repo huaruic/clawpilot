@@ -45,7 +45,7 @@ export function AgentsPage(): React.ReactElement {
 
   useEffect(() => {
     void refresh()
-    void window.clawpilot.channels.listConfigured().then(setChannels)
+    void window.catclaw.channels.listConfigured().then(setChannels)
   }, [refresh])
 
   return (
@@ -73,12 +73,11 @@ export function AgentsPage(): React.ReactElement {
 
       {/* Profile list */}
       <div className="mt-4 space-y-3">
-        {profiles.map((profile, index) => (
+        {profiles.map((profile) => (
           <ProfileCard
             key={profile.id}
             profile={profile}
-            className="card-hover animate-fade-in"
-            style={{ animationDelay: `${index * 50}ms` }}
+            className="card-hover"
             globalModelRef={globalModelRef}
             routes={routes}
             onOpenSettings={() => setEditProfile(profile)}
