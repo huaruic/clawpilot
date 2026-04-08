@@ -1,8 +1,10 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app } from 'electron'
 import { join } from 'node:path'
 import { RuntimeState } from './state/RuntimeState'
 import { OpenClawProcessManager } from './services/OpenClawProcessManager'
 import { WsGatewayClient } from './services/WsGatewayClient'
+import { AppLifecycle } from './AppLifecycle'
+import { TrayManager } from './TrayManager'
 import { registerAllIpc } from './ipc/index'
 import { registerChatEventForwarding } from './ipc/chat.ipc'
 import { mainLogger } from './utils/logger'
@@ -17,13 +19,36 @@ import { syncUsageFromGateway } from './ipc/dashboard.ipc'
 app.setName('ClawPilot')
 app.setPath('userData', join(app.getPath('appData'), 'ClawPilot'))
 
-let mainWindow: BrowserWindow | null = null
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
 const state = new RuntimeState()
 const processManager = new OpenClawProcessManager(state)
 let wsClient: WsGatewayClient | null = null
 let wsConnectInFlight = false
+
+// Resolve tray icon path — macOS uses template images (black + transparent)
+const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
+
+const trayManager = new TrayManager({
+  onShowWindow: () => lifecycle.ensureWindow(),
+  onQuit: () => void lifecycle.handleQuit(),
+  iconPath: trayIconPath,
+})
+
+const lifecycle = new AppLifecycle({
+  processManager,
+  disconnectWs: () => {
+    wsClient?.disconnect()
+    wsClient = null
+    wsConnectInFlight = false
+  },
+  trayManager,
+  createWindowOptions: {
+    preloadPath: join(__dirname, '../preload/index.js'),
+    rendererUrl: process.env.ELECTRON_RENDERER_URL,
+    rendererHtmlPath: join(__dirname, '../renderer/index.html'),
+  },
+})
 
 async function refreshSetup(): Promise<void> {
   state.setSetup(await inspectOpenClawSetup())
@@ -37,6 +62,7 @@ const WS_MAX_DELAY_MS = 5000
 
 async function connectWsWithRetry(port: number): Promise<void> {
   for (let attempt = 1; attempt <= WS_MAX_RETRIES; attempt++) {
+    if (lifecycle.quitting) return
     if (state.snapshot.status !== 'STARTING') return // process died or was stopped
 
     // Read token (may not exist yet during bootstrap)
@@ -63,10 +89,10 @@ async function connectWsWithRetry(port: number): Promise<void> {
       state.setHealth('ok', Date.now())
 
       // Post-connection setup
-      registerChatEventForwarding(client, () => mainWindow)
+      registerChatEventForwarding(client, () => lifecycle.window)
       processManager.startHealthMonitor()
 
-      syncUsageFromGateway(client, () => mainWindow).catch((err) => {
+      syncUsageFromGateway(client, () => lifecycle.window).catch((err) => {
         mainLogger.warn('[Main] Initial usage sync failed:', String(err))
       })
 
@@ -75,7 +101,7 @@ async function connectWsWithRetry(port: number): Promise<void> {
         if (sessionsChangedTimer) clearTimeout(sessionsChangedTimer)
         sessionsChangedTimer = setTimeout(() => {
           sessionsChangedTimer = null
-          syncUsageFromGateway(client!, () => mainWindow).catch((err) => {
+          syncUsageFromGateway(client!, () => lifecycle.window).catch((err) => {
             mainLogger.warn('[Main] sessions.changed usage sync failed:', String(err))
           })
         }, 500)
@@ -100,53 +126,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function createWindow(): BrowserWindow {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 900,
-    minHeight: 600,
-    titleBarStyle: 'hiddenInset',
-    backgroundColor: '#0a0a0a',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
-
-  mainWindow.on('closed', () => { mainWindow = null })
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
-    return { action: 'deny' }
-  })
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
-
-  return mainWindow
-}
+// ── App startup ───────────────────────────────────────────────────
 
 if (!gotSingleInstanceLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+    lifecycle.ensureWindow()
   })
+
+  lifecycle.registerAppEvents()
 }
 
 app.whenReady().then(async () => {
   mainLogger.info('App ready')
 
+  trayManager.create()
+
   await refreshSetup()
-  const win = createWindow()
+  const win = lifecycle.createWindow()
   deviceOAuthManager.setWindow(win)
   browserOAuthManager.setWindow(win)
 
@@ -154,7 +152,7 @@ app.whenReady().then(async () => {
     processManager,
     state,
     refreshSetup,
-    getMainWindow: () => mainWindow,
+    getMainWindow: () => lifecycle.window,
     getWsClient: () => {
       if (!wsClient) throw new Error('WsGatewayClient not yet connected')
       return wsClient
@@ -178,6 +176,9 @@ app.whenReady().then(async () => {
   state.onChange(async (snap) => {
     const statusChanged = snap.status !== lastStatus
     lastStatus = snap.status
+
+    // Sync tray status
+    trayManager.updateStatus(snap.status)
 
     if (snap.status === 'STARTING' && statusChanged) {
       if (wsClient?.isConnected || wsConnectInFlight) return
@@ -204,26 +205,5 @@ app.whenReady().then(async () => {
     })
   } else {
     mainLogger.info('Skipping auto-start: no provider or default model configured')
-  }
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
-
-app.on('window-all-closed', async () => {
-  mainLogger.info('All windows closed, shutting down...')
-  wsClient?.disconnect()
-  await processManager.stop()
-  if (process.platform !== 'darwin') app.quit()
-})
-
-app.on('before-quit', async (event) => {
-  if (state.snapshot.status === 'RUNNING') {
-    event.preventDefault()
-    mainLogger.info('Stopping OpenClaw before quit...')
-    wsClient?.disconnect()
-    await processManager.stop()
-    app.quit()
   }
 })

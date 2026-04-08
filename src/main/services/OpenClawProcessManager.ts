@@ -27,6 +27,7 @@ export class OpenClawProcessManager {
   private restartAttempts = 0
   private restartWindowStart = 0
   private restartInFlight = false
+  private restartTimer: ReturnType<typeof setTimeout> | null = null
   private stopRequested = false
   private lastRestartAt = 0
 
@@ -155,6 +156,17 @@ export class OpenClawProcessManager {
     })
   }
 
+  /** Cancel all pending timers and mark as disposed. Call before stop() during app quit. */
+  dispose(): void {
+    this.stopRequested = true
+    this.stopHealthMonitor()
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer)
+      this.restartTimer = null
+      this.restartInFlight = false
+    }
+  }
+
   async restart(): Promise<void> {
     const now = Date.now()
     if (now - this.lastRestartAt < RESTART_DEBOUNCE_MS) {
@@ -188,7 +200,8 @@ export class OpenClawProcessManager {
     const delay = RESTART_BACKOFF_BASE_MS * this.restartAttempts
 
     mainLogger.warn(`[ProcessManager] Scheduling restart in ${delay}ms (${reason})`)
-    setTimeout(() => {
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null
       this.restartInFlight = false
       void this.restart()
     }, delay)
