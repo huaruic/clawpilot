@@ -14,6 +14,7 @@ import { ensureAllChannelPlugins } from './services/ChannelConfigService'
 import { deviceOAuthManager } from './services/DeviceOAuthManager'
 import { browserOAuthManager } from './services/BrowserOAuthManager'
 import { syncUsageFromGateway } from './ipc/dashboard.ipc'
+import { getAppResourcePath } from './services/RuntimeLocator'
 
 // Keep dev and packaged builds on the same userData root.
 app.setName('CatClaw')
@@ -27,7 +28,7 @@ let wsClient: WsGatewayClient | null = null
 let wsConnectInFlight = false
 
 // Resolve tray icon path — macOS uses template images (black + transparent)
-const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
+const trayIconPath = getAppResourcePath('resources/trayTemplate.png')
 
 const trayManager = new TrayManager({
   onShowWindow: () => lifecycle.ensureWindow(),
@@ -166,6 +167,19 @@ app.whenReady().then(async () => {
       await syncRoutingProfilesAfterProviderChange()
       await ensureAllChannelPlugins()
       mainLogger.info('Provider, routing, and channel plugins synced')
+
+      // Re-evaluate setup after sync — providers may now be present
+      await refreshSetup()
+      if (
+        state.snapshot.status === 'STOPPED' &&
+        state.snapshot.setup.hasProvider &&
+        state.snapshot.setup.hasDefaultModel
+      ) {
+        mainLogger.info('Auto-starting OpenClaw after background sync...')
+        processManager.start().catch((err) => {
+          mainLogger.error('Post-sync auto-start failed:', err.message)
+        })
+      }
     } catch (err) {
       mainLogger.warn('Background sync failed:', err)
     }

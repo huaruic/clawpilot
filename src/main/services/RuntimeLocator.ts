@@ -76,3 +76,17 @@ export function getOpenClawWorkspaceRoot(name = 'workspace-default'): string {
 export function getCatClawDataDir(): string {
   return path.join(app.getPath('userData'), 'catclaw')
 }
+
+/**
+ * Resolve a project-relative resource path that works in both dev and packaged mode.
+ *
+ * In dev mode `__dirname` is `out/main/`, so `../..` reaches the project root.
+ * In packaged mode `extraResources` copies files into `process.resourcesPath`
+ * with the same relative structure (e.g. `resources/trayTemplate.png`).
+ */
+export function getAppResourcePath(relativePath: string): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, relativePath)
+  }
+  return path.join(__dirname, '../..', relativePath)
+}
