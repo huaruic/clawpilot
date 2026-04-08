@@ -20,3 +20,27 @@ resources/runtime/
 
 catclaw-pitch.html
 catclaw_spec.md
+
+# AI config
+.gemini/
+AGENTS.md
+GEMINI.md
+
+# Temp scripts
+apply-classes.mjs
+fix-buttons.js
+fix-buttons.mjs
+generate_icons.py
+electron.vite.config.*.mjs
+
+# Plan docs
+PARIS-ROUTING-PROFILE-PLAN.md
+
+# Sub-projects
+catclaw-landing/
+clawx-explorer/
+
+# Build artifacts
+tsconfig.node.tsbuildinfo
+tsconfig.web.tsbuildinfo
+
