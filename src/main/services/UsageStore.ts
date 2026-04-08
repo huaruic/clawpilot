@@ -93,7 +93,7 @@ const DEFAULT_DATA: UsageStoreData = {
 // ── Store ────────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  return join(app.getPath('userData'), 'clawpilot-usage.json')
+  return join(app.getPath('userData'), 'catclaw-usage.json')
 }
 
 async function readStore(): Promise<UsageStoreData> {

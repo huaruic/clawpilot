@@ -4,7 +4,7 @@ import { App } from './App'
 import './styles/globals.css'
 import { I18nProvider } from './i18n/I18nProvider'
 
-// Initialize the clawpilot API type declarations
+// Initialize the catclaw API type declarations
 import './api/ipc'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -27,7 +27,7 @@ export class TrayManager {
   create(): void {
     const icon = nativeImage.createFromPath(this.deps.iconPath)
     this.tray = new Tray(icon)
-    this.tray.setToolTip('ClawPilot')
+    this.tray.setToolTip('CatClaw')
     this.tray.on('click', () => this.deps.onShowWindow())
     this.rebuildMenu('STOPPED')
     mainLogger.info('[TrayManager] Tray created')
@@ -36,7 +36,7 @@ export class TrayManager {
   updateStatus(status: RuntimeStatus): void {
     if (!this.tray) return
     const label = STATUS_LABELS[status] ?? status
-    this.tray.setToolTip(`ClawPilot — ${label}`)
+    this.tray.setToolTip(`CatClaw — ${label}`)
     this.rebuildMenu(status)
   }
 
@@ -52,7 +52,7 @@ export class TrayManager {
     const statusLabel = STATUS_LABELS[status] ?? status
 
     const menu = Menu.buildFromTemplate([
-      { label: '打开 ClawPilot', click: () => this.deps.onShowWindow() },
+      { label: '打开 CatClaw', click: () => this.deps.onShowWindow() },
       { type: 'separator' },
       { label: statusLabel, enabled: false },
       { type: 'separator' },

@@ -29,7 +29,7 @@ export function DiagnosticsPage(): React.ReactElement {
   const runDiagnostics = async (): Promise<void> => {
     setLoading(true)
     try {
-      setReport(await window.clawpilot.diagnostics.run())
+      setReport(await window.catclaw.diagnostics.run())
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
     } finally {
@@ -40,7 +40,7 @@ export function DiagnosticsPage(): React.ReactElement {
   const handleFix = async (issue: DiagnosticIssue): Promise<void> => {
     setFixingIssue(issue.title)
     try {
-      const result = await window.clawpilot.diagnostics.fix(issue)
+      const result = await window.catclaw.diagnostics.fix(issue)
       if (result.success) {
         toast.success(result.message)
         await runDiagnostics()
@@ -59,13 +59,13 @@ export function DiagnosticsPage(): React.ReactElement {
     setExporting(true)
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const outputPath = await window.clawpilot.app.showSaveDialog({
+      const outputPath = await window.catclaw.app.showSaveDialog({
         title: 'Export Diagnostics Bundle',
-        defaultPath: `clawpilot-diagnostics-${timestamp}.json`,
+        defaultPath: `catclaw-diagnostics-${timestamp}.json`,
         filters: [{ name: 'JSON', extensions: ['json'] }],
       })
       if (!outputPath) { setExporting(false); return }
-      await window.clawpilot.diagnostics.exportBundle({ outputPath })
+      await window.catclaw.diagnostics.exportBundle({ outputPath })
       toast.success(`${t('app.diagnostics.exportedTo')} ${outputPath}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))

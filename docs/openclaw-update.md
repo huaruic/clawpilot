@@ -1,39 +1,39 @@
 # OpenClaw Update Runbook
 
-This document defines the fixed process for updating the OpenClaw runtime packaged by ClawPilot.
+This document defines the fixed process for updating the OpenClaw runtime packaged by CatClaw.
 
 ## Goal
 
 Keep these three things aligned:
 
 - the pinned runtime versions in `runtime-manifest.json`
-- the provider presets and model lists exposed in ClawPilot
+- the provider presets and model lists exposed in CatClaw
 - the packaged app contents staged by `npm run bootstrap`
 
 Do not update OpenClaw by manually copying local build output into the repository.
 
 ## Source Of Truth
 
-ClawPilot pins runtime inputs in:
+CatClaw pins runtime inputs in:
 
 - `runtime-manifest.json`
 
 Bootstrap downloads runtime assets into:
 
-- `.clawpilot-runtime/openclaw`
-- `.clawpilot-runtime/runtime/<platform>`
+- `.catclaw-runtime/openclaw`
+- `.catclaw-runtime/runtime/<platform>`
 
 The downloaded OpenClaw build metadata is recorded in:
 
-- `.clawpilot-runtime/openclaw/dist/build-info.json`
+- `.catclaw-runtime/openclaw/dist/build-info.json`
 
 ## When To Update
 
 Update OpenClaw when any of the following is true:
 
 - a newer OpenClaw release fixes runtime, auth, session, tool, or security issues
-- provider docs changed and ClawPilot presets drifted from OpenClaw
-- ClawPilot needs a newer gateway or session protocol
+- provider docs changed and CatClaw presets drifted from OpenClaw
+- CatClaw needs a newer gateway or session protocol
 - packaging needs a newer runtime layout
 
 ## Fixed Update Procedure
@@ -57,11 +57,11 @@ npm run bootstrap -- --force
 After bootstrap completes, verify:
 
 ```bash
-cat .clawpilot-runtime/openclaw/dist/build-info.json
-cat .clawpilot-runtime/manifest.json
+cat .catclaw-runtime/openclaw/dist/build-info.json
+cat .catclaw-runtime/manifest.json
 ```
 
-### 3. Sync ClawPilot provider presets
+### 3. Sync CatClaw provider presets
 
 Check whether OpenClaw provider docs changed model IDs, provider names, or base URLs.
 
@@ -103,7 +103,7 @@ npm run build
 
 Then verify the app manually:
 
-1. Start ClawPilot.
+1. Start CatClaw.
 2. Confirm OpenClaw boots successfully.
 3. Open Chat and send a message.
 4. Confirm streaming still works.
@@ -114,13 +114,13 @@ Then verify the app manually:
 
 ### 6. Validate packaging inputs
 
-ClawPilot packaging expects bootstrap assets to exist before release builds.
+CatClaw packaging expects bootstrap assets to exist before release builds.
 
 Check:
 
 - `package.json`
-- `.clawpilot-runtime/openclaw`
-- `.clawpilot-runtime/runtime/${os}`
+- `.catclaw-runtime/openclaw`
+- `.catclaw-runtime/runtime/${os}`
 
 Do not ship a release where dev mode works only because of global CLI state.
 
@@ -140,7 +140,7 @@ For every update, record this in the PR description or release notes:
 
 Before merging an OpenClaw update, all items below must be true:
 
-- `.clawpilot-runtime/openclaw/dist/build-info.json` matches the intended OpenClaw version
+- `.catclaw-runtime/openclaw/dist/build-info.json` matches the intended OpenClaw version
 - Chat can send and stream replies
 - session list and history still work
 - provider save still syncs to OpenClaw auth
@@ -151,5 +151,5 @@ Before merging an OpenClaw update, all items below must be true:
 
 ## Notes
 
-- ClawPilot should follow OpenClaw protocol and provider metadata, not maintain a divergent runtime model.
-- If OpenClaw introduces a breaking protocol change, update the ClawPilot adapter layer instead of embedding the OpenClaw web UI again.
+- CatClaw should follow OpenClaw protocol and provider metadata, not maintain a divergent runtime model.
+- If OpenClaw introduces a breaking protocol change, update the CatClaw adapter layer instead of embedding the OpenClaw web UI again.

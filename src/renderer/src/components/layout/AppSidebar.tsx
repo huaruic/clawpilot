@@ -111,7 +111,7 @@ function SessionItem({
         <span className="truncate text-[13px] font-medium leading-snug">{session.title}</span>
       </button>
       {confirmingDelete ? (
-        <div className="flex shrink-0 items-center gap-1 pr-2 animate-fade-in">
+        <div className="flex shrink-0 items-center gap-1 pr-2">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(session.key); setConfirmingDelete(false) }}
             className="rounded px-1.5 py-0.5 text-[10px] font-medium text-danger hover:bg-danger/10"
@@ -210,14 +210,14 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
 
   return (
     <Sidebar className="select-none border-r border-border">
-      {/* Logo + runtime status */}
-      <div className="flex items-center gap-2 p-4">
+      {/* Logo + runtime status (macOS drag region) */}
+      <div className="flex items-center gap-2 p-4 pt-10 [-webkit-app-region:drag]">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
           <PawPrint className="h-4 w-4" />
         </div>
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight text-foreground">ClawPilot</span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">CatClaw</span>
             <div className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full ${STATUS_COLOR[displayStatus]}`} title={displayStatus} />
               <span className="text-[10px] text-muted-foreground">{STATUS_LABEL[displayStatus]}</span>

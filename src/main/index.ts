@@ -16,8 +16,8 @@ import { browserOAuthManager } from './services/BrowserOAuthManager'
 import { syncUsageFromGateway } from './ipc/dashboard.ipc'
 
 // Keep dev and packaged builds on the same userData root.
-app.setName('ClawPilot')
-app.setPath('userData', join(app.getPath('appData'), 'ClawPilot'))
+app.setName('CatClaw')
+app.setPath('userData', join(app.getPath('appData'), 'CatClaw'))
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 

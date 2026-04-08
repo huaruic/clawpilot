@@ -45,7 +45,7 @@ export function SettingsPage(): React.ReactElement {
     setWorkspaceBusy('open')
     setWorkspaceError(null)
     try {
-      const result = await window.clawpilot.app.openDirectory(workspaceInput)
+      const result = await window.catclaw.app.openDirectory(workspaceInput)
       if (!result.ok) {
         setWorkspaceError(result.error ?? t('app.settings.openWorkspaceFailed'))
       }

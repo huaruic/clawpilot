@@ -110,7 +110,7 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
 
       {/* Subheader */}
       <div className="mb-4 flex items-center gap-3 px-1">
-        <span className="text-sm text-muted-foreground">Your chats with ClawPilot</span>
+        <span className="text-sm text-muted-foreground">Your chats with CatClaw</span>
       </div>
 
       {/* Chat list */}

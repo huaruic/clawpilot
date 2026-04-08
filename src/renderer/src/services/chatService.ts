@@ -15,8 +15,8 @@ import { normalizeHistory, normalizeSessions } from '../stores/chat/helpers'
 
 // ─── IPC Bridge Access ──────────────────────────────────────────
 
-function getApi(): typeof window.clawpilot {
-  return window.clawpilot
+function getApi(): typeof window.catclaw {
+  return window.catclaw
 }
 
 // ─── Chat Operations ────────────────────────────────────────────

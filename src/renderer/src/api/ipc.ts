@@ -138,7 +138,7 @@ export interface SkillsListResult {
   skills: SkillInfo[]
 }
 
-export interface ClawPilotAPI {
+export interface CatClawAPI {
   app: {
     start: () => Promise<RuntimeSnapshot>
     stop: () => Promise<RuntimeSnapshot>
@@ -293,6 +293,6 @@ export interface ClawPilotAPI {
 
 declare global {
   interface Window {
-    clawpilot: ClawPilotAPI
+    catclaw: CatClawAPI
   }
 }

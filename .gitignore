@@ -11,12 +11,12 @@ node_modules/
 dist/
 out/
 
-.clawpilot-runtime/
-.clawpilot-cache/
+.catclaw-runtime/
+.catclaw-cache/
 
 vendor/
 resources/openclaw/
 resources/runtime/
 
-clawpilot-pitch.html
-clawpilot_spec.md
+catclaw-pitch.html
+catclaw_spec.md

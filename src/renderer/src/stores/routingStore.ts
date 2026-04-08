@@ -36,7 +36,7 @@ export const useRoutingStore = create<RoutingStore>((set, get) => ({
   refresh: async () => {
     set({ loading: true })
     try {
-      const snapshot = (await window.clawpilot.routing.listProfiles()) as RoutingSnapshot
+      const snapshot = (await window.catclaw.routing.listProfiles()) as RoutingSnapshot
       set({
         profiles: snapshot.profiles,
         routes: snapshot.routes,
@@ -50,28 +50,28 @@ export const useRoutingStore = create<RoutingStore>((set, get) => ({
   },
 
   createProfile: async (params) => {
-    const profile = (await window.clawpilot.routing.createProfile(params)) as RoutingProfile
+    const profile = (await window.catclaw.routing.createProfile(params)) as RoutingProfile
     await get().refresh()
     return profile
   },
 
   updateProfile: async (id, params) => {
-    await window.clawpilot.routing.updateProfile({ id, ...params })
+    await window.catclaw.routing.updateProfile({ id, ...params })
     await get().refresh()
   },
 
   deleteProfile: async (id) => {
-    await window.clawpilot.routing.deleteProfile({ id })
+    await window.catclaw.routing.deleteProfile({ id })
     await get().refresh()
   },
 
   setRoute: async (channelType, accountId, profileId) => {
-    await window.clawpilot.routing.setRoute({ channelType, accountId, profileId })
+    await window.catclaw.routing.setRoute({ channelType, accountId, profileId })
     await get().refresh()
   },
 
   clearRoute: async (channelType, accountId) => {
-    await window.clawpilot.routing.clearRoute({ channelType, accountId })
+    await window.catclaw.routing.clearRoute({ channelType, accountId })
     await get().refresh()
   },
 

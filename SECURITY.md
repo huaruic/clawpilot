@@ -15,7 +15,7 @@ Until a dedicated security mailbox is published, contact the maintainers through
 
 ## Runtime Notes
 
-ClawPilot packages a local OpenClaw runtime for desktop distribution. Security fixes in:
+CatClaw packages a local OpenClaw runtime for desktop distribution. Security fixes in:
 
 - OpenClaw
 - Electron

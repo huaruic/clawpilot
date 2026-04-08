@@ -23,7 +23,7 @@ Use this checklist after creating the remote repository.
 
 - Size: `1280x640`
 - Visual: app screenshot or product hero image
-- Include: `ClawPilot`, `Local AI Agent Desktop`, `Powered by OpenClaw`
+- Include: `CatClaw`, `Local AI Agent Desktop`, `Powered by OpenClaw`
 
 ## Releases
 

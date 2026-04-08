@@ -50,8 +50,8 @@ interface ProviderStore {
 
 export const useProviderStore = create<ProviderStore>((set, get) => {
   // Subscribe to OAuth events via the preload bridge
-  if (typeof window !== 'undefined' && window.clawpilot?.provider?.onOAuthEvent) {
-    window.clawpilot.provider.onOAuthEvent((event, raw) => {
+  if (typeof window !== 'undefined' && window.catclaw?.provider?.onOAuthEvent) {
+    window.catclaw.provider.onOAuthEvent((event, raw) => {
       const data = raw as Record<string, unknown>
       switch (event) {
         case 'oauth:start':
@@ -102,9 +102,9 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
       set({ loading: true })
       try {
         const [vendors, accounts, defaultId] = await Promise.all([
-          window.clawpilot.provider.listVendors(),
-          window.clawpilot.provider.listAccounts(),
-          window.clawpilot.provider.getDefaultAccount(),
+          window.catclaw.provider.listVendors(),
+          window.catclaw.provider.listAccounts(),
+          window.catclaw.provider.getDefaultAccount(),
         ])
         set({ vendors, accounts, defaultAccountId: defaultId, loading: false })
       } catch {
@@ -115,8 +115,8 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
     async refresh() {
       try {
         const [accounts, defaultId] = await Promise.all([
-          window.clawpilot.provider.listAccounts(),
-          window.clawpilot.provider.getDefaultAccount(),
+          window.catclaw.provider.listAccounts(),
+          window.catclaw.provider.getDefaultAccount(),
         ])
         set({ accounts, defaultAccountId: defaultId })
       } catch {
@@ -125,19 +125,19 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
     },
 
     async createAccount(account, apiKey) {
-      const result = await window.clawpilot.provider.createAccount({ account, apiKey })
+      const result = await window.catclaw.provider.createAccount({ account, apiKey })
       await get().refresh()
       return result.account
     },
 
     async updateAccount(accountId, updates, apiKey) {
-      const result = await window.clawpilot.provider.updateAccount({ accountId, updates, apiKey })
+      const result = await window.catclaw.provider.updateAccount({ accountId, updates, apiKey })
       await get().refresh()
       return result.account
     },
 
     async removeAccount(accountId) {
-      await window.clawpilot.provider.deleteAccount({ accountId })
+      await window.catclaw.provider.deleteAccount({ accountId })
       await get().refresh()
       // Auto-set default if only one account remains
       const { accounts, defaultAccountId } = get()
@@ -147,12 +147,12 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
     },
 
     async setDefault(accountId) {
-      await window.clawpilot.provider.setDefaultAccount({ accountId })
+      await window.catclaw.provider.setDefaultAccount({ accountId })
       set({ defaultAccountId: accountId })
     },
 
     async validateKey(providerType, apiKey, options) {
-      return window.clawpilot.provider.validate({
+      return window.catclaw.provider.validate({
         providerType,
         apiKey,
         baseUrl: options?.baseUrl,
@@ -161,16 +161,16 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
     },
 
     async getAccountKey(accountId) {
-      return window.clawpilot.provider.getAccountKey({ accountId })
+      return window.catclaw.provider.getAccountKey({ accountId })
     },
 
     async hasAccountKey(accountId) {
-      return window.clawpilot.provider.hasAccountKey({ accountId })
+      return window.catclaw.provider.hasAccountKey({ accountId })
     },
 
     async startOAuth(provider, options) {
       set({ oauthFlow: { active: true, provider } })
-      const result = await window.clawpilot.provider.oauthStart({
+      const result = await window.catclaw.provider.oauthStart({
         provider,
         region: options?.region,
         accountId: options?.accountId,
@@ -183,7 +183,7 @@ export const useProviderStore = create<ProviderStore>((set, get) => {
     },
 
     async cancelOAuth() {
-      await window.clawpilot.provider.oauthCancel()
+      await window.catclaw.provider.oauthCancel()
       set({ oauthFlow: { active: false, provider: null } })
     },
   }

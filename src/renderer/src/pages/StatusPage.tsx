@@ -27,7 +27,7 @@ export function StatusPage(): React.ReactElement {
   async function handleAction(action: 'start' | 'stop' | 'restart'): Promise<void> {
     setLoading(action)
     try {
-      await window.clawpilot.app[action]()
+      await window.catclaw.app[action]()
     } finally {
       setLoading(null)
     }

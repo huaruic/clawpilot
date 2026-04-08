@@ -11,8 +11,8 @@ import { toast } from 'sonner'
 
 type Tab = 'all' | 'builtin' | 'installed'
 
-function getSkillsApi(): Window['clawpilot']['skills'] {
-  const api = window.clawpilot?.skills
+function getSkillsApi(): Window['catclaw']['skills'] {
+  const api = window.catclaw?.skills
   if (!api) throw new Error('Skills API is not available.')
   return api
 }

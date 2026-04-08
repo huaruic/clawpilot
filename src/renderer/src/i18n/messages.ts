@@ -157,9 +157,9 @@ export const messages = {
       },
       settings: {
         title: 'Settings',
-        subtitle: 'Application preferences for ClawPilot',
+        subtitle: 'Application preferences for CatClaw',
         themeTitle: 'Appearance',
-        themeHelp: 'Choose whether ClawPilot follows system appearance or uses a fixed theme.',
+        themeHelp: 'Choose whether CatClaw follows system appearance or uses a fixed theme.',
         themeLabel: 'Theme',
         themeSystem: 'Follow System',
         themeDark: 'Dark',
@@ -191,7 +191,7 @@ export const messages = {
       },
       diagnostics: {
         title: 'Diagnostics',
-        subtitle: 'Validate runtime, provider, channel, and workspace health for ClawPilot.',
+        subtitle: 'Validate runtime, provider, channel, and workspace health for CatClaw.',
         runCheck: 'Run Check',
         running: 'Running...',
         exportBundle: 'Export Bundle',
@@ -508,7 +508,7 @@ export const messages = {
       },
       settings: {
         title: '设置',
-        subtitle: 'ClawPilot 应用级偏好设置',
+        subtitle: 'CatClaw 应用级偏好设置',
         themeTitle: '外观',
         themeHelp: '选择是否跟随系统外观，或固定使用浅色/深色主题。',
         themeLabel: '主题',
@@ -542,7 +542,7 @@ export const messages = {
       },
       diagnostics: {
         title: '诊断',
-        subtitle: '检查 ClawPilot 的运行时、Provider、渠道和工作区健康状态。',
+        subtitle: '检查 CatClaw 的运行时、Provider、渠道和工作区健康状态。',
         runCheck: '运行检查',
         running: '检查中...',
         exportBundle: '导出诊断包',

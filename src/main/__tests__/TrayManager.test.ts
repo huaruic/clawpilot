@@ -57,7 +57,7 @@ describe('TrayManager', () => {
   describe('create', () => {
     it('creates a Tray instance and sets tooltip', () => {
       tray.create()
-      expect(lastTrayInstance.setToolTip).toHaveBeenCalledWith('ClawPilot')
+      expect(lastTrayInstance.setToolTip).toHaveBeenCalledWith('CatClaw')
     })
 
     it('sets a context menu', () => {
@@ -81,17 +81,17 @@ describe('TrayManager', () => {
   })
 
   describe('context menu', () => {
-    it('contains "打开 ClawPilot" item', () => {
+    it('contains "打开 CatClaw" item', () => {
       tray.create()
       const template = mockMenuBuildFromTemplate.mock.calls[0][0] as Array<{ label?: string }>
-      const showItem = template.find((item) => item.label === '打开 ClawPilot')
+      const showItem = template.find((item) => item.label === '打开 CatClaw')
       expect(showItem).toBeDefined()
     })
 
-    it('"打开 ClawPilot" item calls onShowWindow', () => {
+    it('"打开 CatClaw" item calls onShowWindow', () => {
       tray.create()
       const template = mockMenuBuildFromTemplate.mock.calls[0][0] as Array<{ label?: string; click?: () => void }>
-      const showItem = template.find((item) => item.label === '打开 ClawPilot')
+      const showItem = template.find((item) => item.label === '打开 CatClaw')
       showItem!.click!()
       expect(deps.onShowWindow).toHaveBeenCalled()
     })

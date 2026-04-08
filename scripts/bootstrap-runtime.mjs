@@ -19,13 +19,13 @@ import { execFileSync } from 'node:child_process'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
 const manifestPath = path.join(rootDir, 'runtime-manifest.json')
-const runtimeRoot = path.join(rootDir, '.clawpilot-runtime')
+const runtimeRoot = path.join(rootDir, '.catclaw-runtime')
 const runtimeManifestOut = path.join(runtimeRoot, 'manifest.json')
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
 const openclawPackage = process.env.OPENCLAW_PACKAGE ?? manifest.openclaw.package
 const openclawVersion = process.env.OPENCLAW_VERSION ?? manifest.openclaw.version
-const nodeVersion = process.env.CLAWPILOT_NODE_VERSION ?? manifest.node.version
+const nodeVersion = process.env.CATCLAW_NODE_VERSION ?? manifest.node.version
 const force = process.argv.includes('--force')
 
 const platformInfo = resolvePlatform(process.platform, process.arch)
@@ -49,7 +49,7 @@ async function main() {
     return
   }
 
-  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'clawpilot-runtime-'))
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'catclaw-runtime-'))
   try {
     console.log(`Preparing OpenClaw ${openclawVersion}`)
     bootstrapOpenClaw(tempDir)
@@ -116,7 +116,7 @@ async function bootstrapNode(tempDir) {
 
   const archiveName = buildNodeArchiveName(nodeVersion, platformInfo)
   const archivePath = path.join(tempDir, archiveName)
-  const archiveUrl = `${process.env.CLAWPILOT_NODE_DIST_BASE_URL ?? 'https://nodejs.org/dist'}/v${nodeVersion}/${archiveName}`
+  const archiveUrl = `${process.env.CATCLAW_NODE_DIST_BASE_URL ?? 'https://nodejs.org/dist'}/v${nodeVersion}/${archiveName}`
 
   await downloadFile(archiveUrl, archivePath)
 

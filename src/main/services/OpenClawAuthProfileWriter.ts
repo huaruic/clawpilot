@@ -34,7 +34,7 @@ interface ProviderCredential {
   oauth?: { access: string; refresh: string; expires: number; email?: string }
 }
 
-const MANAGED_PROFILE_PREFIX = 'clawpilot-'
+const MANAGED_PROFILE_PREFIX = 'catclaw-'
 const MANAGED_AGENT_IDS = ['main', 'default']
 
 /**
