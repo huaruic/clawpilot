@@ -13,6 +13,9 @@ import {
   Trash2,
   Search,
   Clock,
+  Server,
+  VenetianMask,
+  PawPrint,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../stores/runtimeStore'
 import { useChatStore } from '../../stores/chat'
@@ -108,7 +111,7 @@ function SessionItem({
         <span className="truncate text-[13px] font-medium leading-snug">{session.title}</span>
       </button>
       {confirmingDelete ? (
-        <div className="flex shrink-0 items-center gap-1 pr-2">
+        <div className="flex shrink-0 items-center gap-1 pr-2 animate-fade-in">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(session.key); setConfirmingDelete(false) }}
             className="rounded px-1.5 py-0.5 text-[10px] font-medium text-danger hover:bg-danger/10"
@@ -210,7 +213,7 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
       {/* Logo + runtime status */}
       <div className="flex items-center gap-2 p-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-          🦞
+          <PawPrint className="h-4 w-4" />
         </div>
         {!collapsed && (
           <div className="flex flex-col">

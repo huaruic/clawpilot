@@ -92,14 +92,14 @@ export function DiagnosticsPage(): React.ReactElement {
           <button
             onClick={() => void runDiagnostics()}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="btn-active-scale flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <Play className="h-3 w-3" /> {loading ? t('app.diagnostics.running') : t('app.diagnostics.runCheck')}
           </button>
           <button
             onClick={() => void handleExport()}
             disabled={!report || exporting}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            className="btn-active-scale flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Wrench className="h-3 w-3" /> {exporting ? t('app.diagnostics.exporting') : t('app.diagnostics.exportBundle')}
           </button>
@@ -144,7 +144,7 @@ export function DiagnosticsPage(): React.ReactElement {
                     <button
                       onClick={() => void handleFix(issue)}
                       disabled={fixingIssue !== null}
-                      className="rounded border border-primary/30 px-2 py-0.5 text-[10px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                      className="btn-active-scale rounded border border-primary/30 px-2 py-0.5 text-[10px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
                     >
                       {fixingIssue === issue.title ? t('app.diagnostics.fixing') : `${t('app.diagnostics.autoFix')} →`}
                     </button>
@@ -171,19 +171,19 @@ export function DiagnosticsPage(): React.ReactElement {
                 <button
                   key={tb}
                   onClick={() => setLogTab(tb)}
-                  className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                  className={`btn-active-scale ${`rounded-md px-3 py-1.5 text-xs transition-colors ${
                     logTab === tb ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
-                  }`}
+                  }`}`}
                 >
                   {tb === 'issues' ? t('app.diagnostics.issuesTitle') : t('app.diagnostics.systemInfo')}
                 </button>
               ))}
             </div>
             <div className="flex gap-1">
-              <button className="p-1.5 text-muted-foreground hover:text-foreground" title="Copy">
+              <button className="btn-active-scale p-1.5 text-muted-foreground hover:text-foreground" title="Copy">
                 <Copy className="h-3.5 w-3.5" />
               </button>
-              <button className="p-1.5 text-muted-foreground hover:text-foreground" title="Open">
+              <button className="btn-active-scale p-1.5 text-muted-foreground hover:text-foreground" title="Open">
                 <FolderOpen className="h-3.5 w-3.5" />
               </button>
             </div>

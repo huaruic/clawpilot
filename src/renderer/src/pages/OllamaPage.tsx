@@ -25,8 +25,8 @@ export function OllamaPage(): React.ReactElement {
             <li>One-click set as default provider model</li>
           </ul>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" disabled>Check Local Runtime</Button>
-            <Button variant="outline" size="sm" disabled>Pull Recommended Model</Button>
+            <Button className="btn-active-scale" variant="secondary" size="sm" disabled>Check Local Runtime</Button>
+            <Button className="btn-active-scale" variant="outline" size="sm" disabled>Pull Recommended Model</Button>
           </div>
         </CardContent>
       </Card>

@@ -100,13 +100,13 @@ export function StatusPage(): React.ReactElement {
         <CardHeader className="pb-0">
           <button
             onClick={() => setDiagExpanded((prev) => !prev)}
-            className="flex w-full items-center justify-between gap-3 text-left"
+            className="btn-active-scale flex w-full items-center justify-between gap-3 text-left"
           >
             <div>
               <CardTitle className="text-sm">{t('app.status.diagnosticsTitle')}</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">{t('app.diagnostics.subtitle')}</p>
             </div>
-            <Button variant="secondary" size="sm">
+            <Button className="btn-active-scale" variant="secondary" size="sm">
               {diagExpanded ? t('app.status.hideDiagnostics') : t('app.status.showDiagnostics')}
             </Button>
           </button>
@@ -169,7 +169,7 @@ function ActionButton({
       : 'bg-warning text-primary-foreground hover:bg-warning/90'
 
   return (
-    <Button onClick={onClick} disabled={disabled || loading} className={className}>
+    <Button onClick={onClick} disabled={disabled || loading} className={`btn-active-scale ${className}`}>
       {loading ? '...' : label}
     </Button>
   )

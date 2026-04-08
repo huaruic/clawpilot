@@ -160,7 +160,7 @@ export function SkillsPage(): React.ReactElement {
         <h1 className="text-lg font-semibold text-foreground">{t('nav.skills')}</h1>
         <button
           onClick={() => void loadSkills()}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+          className="btn-active-scale flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
         >
           <FolderOpen className="h-3.5 w-3.5" /> {t('app.skills.openDir')}
         </button>
@@ -183,7 +183,7 @@ export function SkillsPage(): React.ReactElement {
               <button
                 key={tb.key}
                 onClick={() => window.open('https://clawhub.ai/skills?sort=downloads', '_blank')}
-                className="flex items-center gap-1 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                className="btn-active-scale flex items-center gap-1 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
               >
                 {tb.label} <ExternalLink className="h-3 w-3" />
               </button>
@@ -191,9 +191,9 @@ export function SkillsPage(): React.ReactElement {
               <button
                 key={tb.key}
                 onClick={() => setTab(tb.key as Tab)}
-                className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                className={`btn-active-scale ${`rounded-md px-3 py-1.5 text-xs transition-colors ${
                   tab === tb.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
-                }`}
+                }`}`}
               >
                 {tb.label} ({tb.count})
               </button>
@@ -232,7 +232,7 @@ export function SkillsPage(): React.ReactElement {
                   <button
                     onClick={() => void handleDelete(skill)}
                     disabled={busySkillKey === skill.skillKey}
-                    className="text-[10px] text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                    className="btn-active-scale text-[10px] text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
                   >
                     {t('app.skills.delete')}
                   </button>
@@ -267,7 +267,7 @@ export function SkillsPage(): React.ReactElement {
                 <span className="text-[10px] text-muted-foreground">
                   ★ {rs.rating}  {rs.downloads} {t('app.skills.installs')}
                 </span>
-                <button className="rounded-md bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90">
+                <button className="btn-active-scale rounded-md bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90">
                   {t('app.skills.install')}
                 </button>
               </div>
@@ -279,7 +279,7 @@ export function SkillsPage(): React.ReactElement {
       {/* Marketplace link */}
       <button
         onClick={() => window.open('https://clawhub.ai/skills?sort=downloads', '_blank')}
-        className="flex items-center gap-1 text-xs text-primary hover:underline"
+        className="btn-active-scale flex items-center gap-1 text-xs text-primary hover:underline"
       >
         {t('app.skills.browseMore')} <ExternalLink className="h-3 w-3" />
       </button>

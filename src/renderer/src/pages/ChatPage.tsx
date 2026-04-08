@@ -136,7 +136,7 @@ function ModelSelector({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-foreground/[0.03]"
+        className="btn-active-scale flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-foreground/[0.03]"
       >
         <span>{displayName}</span>
         <ChevronDown className="h-3 w-3" />
@@ -154,7 +154,7 @@ function ModelSelector({
                     onSelect(account.id)
                     setOpen(false)
                   }}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] hover:bg-foreground/[0.05] transition-colors"
+                  className="btn-active-scale flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] hover:bg-foreground/[0.05] transition-colors"
                 >
                   <span className="flex-1 truncate text-foreground">{getModelDisplayName(account)}</span>
                   {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
@@ -206,7 +206,7 @@ function InputBar({
               onClick={() => {
                 onChange(cmd.command)
               }}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-foreground/[0.05] transition-colors"
+              className="btn-active-scale flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-foreground/[0.05] transition-colors"
             >
               <span className="text-sm font-mono font-medium text-foreground">{cmd.command}</span>
               <span className="text-xs text-muted-foreground">{tCmd(cmd.descKey)}</span>
@@ -232,16 +232,16 @@ function InputBar({
       />
       <div className="flex items-center justify-between px-3 pb-3">
         <div className="flex items-center gap-0.5">
-          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="btn-active-scale clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Plus className="h-[18px] w-[18px]" />
           </button>
-          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="btn-active-scale clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Paperclip className="h-[18px] w-[18px]" />
           </button>
-          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="btn-active-scale clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Globe className="h-[18px] w-[18px]" />
           </button>
-          <button className="clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
+          <button className="btn-active-scale clickable p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/[0.03]">
             <Mic className="h-[18px] w-[18px]" />
           </button>
         </div>
@@ -254,11 +254,11 @@ function InputBar({
           <button
             onClick={onSend}
             disabled={disabled || !value.trim()}
-            className={`clickable flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 shadow-sm border border-black/10 dark:border-white/5 ${
+            className={`btn-active-scale ${`clickable flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 shadow-sm border border-black/10 dark:border-white/5 ${
               value.trim()
                 ? 'bg-foreground text-card hover:bg-foreground/90'
                 : 'bg-muted text-muted-foreground'
-            }`}
+            }`}`}
           >
             <ArrowUp className="h-4 w-4" />
           </button>
@@ -285,7 +285,7 @@ function QuickStartGrid({ onSelect }: { onSelect: (prompt: string) => void }): R
           <button
             key={key}
             onClick={() => onSelect(prompt)}
-            className="flex items-start gap-3 p-4 bg-card/70 hover:bg-card/90 border border-border/30 rounded-xl text-left transition-colors"
+            className="btn-active-scale flex items-start gap-3 p-4 bg-card/70 hover:bg-card/90 border border-border/30 rounded-xl text-left transition-colors"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
               <Icon className="h-[18px] w-[18px] text-primary" />
@@ -516,7 +516,7 @@ function SetupBanner({ onGoToProviders }: { onGoToProviders: () => void }): Reac
       </div>
       <button
         onClick={onGoToProviders}
-        className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90"
+        className="btn-active-scale shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90"
       >
         {t('app.chat.setupBannerAction')}
       </button>

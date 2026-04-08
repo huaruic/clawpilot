@@ -472,3 +472,20 @@ button:active:not(:disabled), .cp-btn:active:not(:disabled) {
 :root[data-theme="dark"] .code-block {
   background: hsl(var(--muted) / 0.8);
 }
+
+@layer components {
+  .btn-active-scale {
+    @apply active:scale-[0.98] transition-transform;
+  }
+  .card-hover {
+    @apply transition-all duration-200 ease-in-out hover:-translate-y-[2px] hover:shadow-md hover:shadow-orange-900/5 dark:hover:shadow-orange-900/10;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

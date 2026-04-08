@@ -92,13 +92,13 @@ export function PersonaPage(): React.ReactElement {
         <div className="flex gap-2">
           <button
             onClick={handleReset}
-            className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
+            className="btn-active-scale flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
           >
             <RotateCcw className="h-3 w-3" /> {t('app.persona.reset')}
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90"
+            className="btn-active-scale flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Save className="h-3 w-3" /> {t('app.persona.save')}
           </button>
@@ -163,7 +163,7 @@ export function PersonaPage(): React.ReactElement {
               <div className="flex flex-wrap gap-1.5">
                 {VIBES.map((v) => (
                   <button key={v} onClick={() => update({ vibe: v })}
-                    className={`rounded-md px-3 py-1 text-xs transition-colors ${form.vibe === v ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'}`}>
+                    className={`btn-active-scale ${`rounded-md px-3 py-1 text-xs transition-colors ${form.vibe === v ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'}`}`}>
                     {v}
                   </button>
                 ))}
@@ -187,11 +187,12 @@ export function PersonaPage(): React.ReactElement {
           className="mb-4 min-h-[100px] w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {SOUL_TEMPLATES.map((tmpl) => (
+          {SOUL_TEMPLATES.map((tmpl, index) => (
             <button
               key={tmpl.id}
               onClick={() => update({ soul: t(tmpl.descKey) })}
-              className="flex flex-col items-start gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/50"
+              className="btn-active-scale flex flex-col items-start gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/50 card-hover animate-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               <IconBox><tmpl.icon className="h-4 w-4 text-primary" /></IconBox>
               <div>
@@ -212,7 +213,7 @@ export function PersonaPage(): React.ReactElement {
             <div className="flex flex-wrap gap-1.5">
               {TRAITS.map((tr) => (
                 <button key={tr} onClick={() => toggleTrait(tr)}
-                  className={`rounded-md px-3 py-1 text-xs transition-colors ${form.traits.includes(tr) ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'}`}>
+                  className={`btn-active-scale ${`rounded-md px-3 py-1 text-xs transition-colors ${form.traits.includes(tr) ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'}`}`}>
                   {tr}
                 </button>
               ))}

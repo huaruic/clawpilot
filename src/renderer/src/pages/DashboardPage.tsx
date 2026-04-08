@@ -138,11 +138,11 @@ export function DashboardPage(): React.ReactElement {
             <button
               key={key}
               onClick={() => setRange(key)}
-              className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+              className={`btn-active-scale ${`rounded-md px-3 py-1.5 text-xs transition-colors ${
                 range === key
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent'
-              }`}
+              }`}`}
             >
               {label}
             </button>
@@ -178,7 +178,7 @@ export function DashboardPage(): React.ReactElement {
       {/* Charts row */}
       <div className="grid grid-cols-3 gap-4">
         {/* Area chart — Token trend by provider */}
-        <div className="col-span-2 rounded-xl border border-border bg-card p-4">
+        <div className="col-span-2 rounded-xl border border-border bg-card p-4 card-hover">
           <h3 className="mb-4 text-sm font-medium text-foreground">{t('app.dashboard.tokenTrend')}</h3>
           {trendData.length > 0 ? (
             <>

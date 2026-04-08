@@ -102,7 +102,7 @@ export function ChannelsPage(): React.ReactElement {
       <p className="mb-4 text-sm font-medium text-foreground">{t('app.channels.selectChannel')}</p>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {primaryChannels.map((type) => {
+        {primaryChannels.map((type, index) => {
           const meta = CHANNEL_META[type]
           const configured = configuredSet.has(type)
           const soon = meta.comingSoon === true
@@ -111,7 +111,8 @@ export function ChannelsPage(): React.ReactElement {
               key={type}
               onClick={() => !soon && setSelectedChannel(type)}
               disabled={soon}
-              className={`group relative flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-6 transition-colors ${soon ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/40 hover:bg-card/80'}`}
+              className={`btn-active-scale ${`group relative flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-6 transition-colors card-hover animate-fade-in ${soon ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/40 hover:bg-card/80'}`}`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               {configured && !soon && (
                 <div className="absolute right-2 top-2">
@@ -285,7 +286,7 @@ function ChannelDetailView({
     <div className="cp-page max-w-3xl">
       <button
         onClick={onBack}
-        className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="btn-active-scale mb-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> {t('app.channels.back')}
       </button>
@@ -303,7 +304,7 @@ function ChannelDetailView({
           {meta.docsUrl && (
             <button
               onClick={() => window.open(meta.docsUrl, '_blank', 'noopener,noreferrer')}
-              className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+              className="btn-active-scale flex items-center gap-1 text-[10px] text-primary hover:underline"
             >
               {isZh ? '查看文档' : 'Docs'} <ExternalLink className="h-3 w-3" />
             </button>
@@ -355,7 +356,7 @@ function ChannelDetailView({
                 <button
                   onClick={() => void handleSave()}
                   disabled={saving || deleting || !isFormValid()}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="btn-active-scale rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {saving
                     ? (isZh ? '保存中...' : 'Saving...')
@@ -367,7 +368,7 @@ function ChannelDetailView({
                 <button
                   onClick={() => void handleValidate()}
                   disabled={validating || !isFormValid()}
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-50"
+                  className="btn-active-scale rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-50"
                 >
                   {validating ? (isZh ? '验证中...' : 'Validating...') : (isZh ? '验证配置' : 'Validate')}
                 </button>
@@ -376,7 +377,7 @@ function ChannelDetailView({
                   <button
                     onClick={() => void handleDelete()}
                     disabled={deleting || saving}
-                    className="flex items-center gap-1 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    className="btn-active-scale flex items-center gap-1 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
                   >
                     <Trash2 className="h-3 w-3" />
                     {deleting ? (isZh ? '删除中...' : 'Deleting...') : (isZh ? '删除' : 'Delete')}
@@ -433,7 +434,7 @@ function ConfigFieldInput({
           <button
             type="button"
             onClick={() => setShowSecret(!showSecret)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="btn-active-scale absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </button>
