@@ -6,7 +6,7 @@ export async function getProviderStore() {
   if (!providerStore) {
     const Store = (await import('electron-store')).default
     providerStore = new Store({
-      name: 'clawpilot-providers',
+      name: 'catclaw-providers',
       defaults: {
         schemaVersion: 0,
         providerAccounts: {} as Record<string, unknown>,

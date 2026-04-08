@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { RuntimeSnapshot } from '../main/state/RuntimeState'
 import type { AppSettings } from '../main/services/AppSettingsStore'
 
-contextBridge.exposeInMainWorld('clawpilot', {
+contextBridge.exposeInMainWorld('catclaw', {
   // ── Runtime ──────────────────────────────────────────────────────
   app: {
     start: (): Promise<RuntimeSnapshot> => ipcRenderer.invoke('app:start'),

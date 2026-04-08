@@ -74,7 +74,7 @@ export function registerSkillsIpc(): void {
       throw new Error(`Skill not found: ${skillKey}`)
     }
     if (!skill.canDelete) {
-      throw new Error('This skill cannot be deleted from ClawPilot.')
+      throw new Error('This skill cannot be deleted from CatClaw.')
     }
 
     await fs.rm(skill.path, { recursive: true, force: true })

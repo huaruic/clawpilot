@@ -127,7 +127,7 @@ export class WsGatewayClient {
       maxProtocol: 99,
       client: {
         id: CLIENT_ID,
-        displayName: 'ClawPilot',
+        displayName: 'CatClaw',
         version: '1.0.0',
         platform: process.platform,
         mode: CLIENT_MODE,

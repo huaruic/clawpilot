@@ -8,13 +8,13 @@ interface RuntimeStore {
 
 export const useRuntimeStore = create<RuntimeStore>((set) => {
   // Subscribe to IPC status changes from main process
-  if (typeof window !== 'undefined' && window.clawpilot) {
-    window.clawpilot.app.onStatusChange((snap) => {
+  if (typeof window !== 'undefined' && window.catclaw) {
+    window.catclaw.app.onStatusChange((snap) => {
       set({ snapshot: snap })
     })
 
     // Load initial status
-    window.clawpilot.app.status().then((snap) => {
+    window.catclaw.app.status().then((snap) => {
       set({ snapshot: snap })
     })
   }

@@ -143,7 +143,7 @@ export function useDashboardData(range: TimeRange): DashboardData {
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await window.clawpilot.dashboard.getUsage()
+      const data = await window.catclaw.dashboard.getUsage()
       setAllSessions(data.sessions)
       setAllRuns(data.runs ?? [])
     } catch {
@@ -158,12 +158,12 @@ export function useDashboardData(range: TimeRange): DashboardData {
     fetchData()
 
     // 2. Refresh from gateway in background, then update
-    window.clawpilot.dashboard.refresh()
+    window.catclaw.dashboard.refresh()
       .then(() => fetchData())
       .catch(() => {})
 
     // 3. Listen for push updates from main process
-    const unsub = window.clawpilot.dashboard.onUpdated(() => fetchData())
+    const unsub = window.catclaw.dashboard.onUpdated(() => fetchData())
 
     return () => unsub()
   }, [fetchData])

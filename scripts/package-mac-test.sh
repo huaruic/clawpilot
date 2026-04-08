@@ -6,9 +6,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 VERSION="$(node -p "require('./package.json').version")"
-APP_DIR="dist/mac-arm64/ClawPilot.app"
-DMG_PATH="dist/ClawPilot-${VERSION}-arm64-test.dmg"
-TMP_DMG="/tmp/ClawPilot-${VERSION}-arm64-test-tmp.dmg"
+APP_DIR="dist/mac-arm64/CatClaw.app"
+DMG_PATH="dist/CatClaw-${VERSION}-arm64-test.dmg"
+TMP_DMG="/tmp/CatClaw-${VERSION}-arm64-test-tmp.dmg"
 
 if [[ ! -d "$APP_DIR" ]]; then
   echo "Expected app bundle not found at $APP_DIR"
@@ -27,7 +27,7 @@ codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 echo "Creating DMG test build..."
 hdiutil create \
   -srcfolder "$APP_DIR" \
-  -volname "ClawPilot ${VERSION}-arm64" \
+  -volname "CatClaw ${VERSION}-arm64" \
   -anyowners \
   -nospotlight \
   -format UDRW \

@@ -42,8 +42,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }): React
     let cancelled = false
 
     Promise.all([
-      window.clawpilot.app.getSettings(),
-      window.clawpilot.app.getSystemLocale(),
+      window.catclaw.app.getSettings(),
+      window.catclaw.app.getSystemLocale(),
     ]).then(([nextSettings, nextSystemLocale]) => {
       if (cancelled) return
       setSettings(nextSettings)
@@ -85,7 +85,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }): React
   const resolvedLanguage = resolveLanguage(settings.language, systemLocale)
 
   async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
-    const nextSettings = await window.clawpilot.app.updateSettings(patch)
+    const nextSettings = await window.catclaw.app.updateSettings(patch)
     setSettings(nextSettings)
   }
 

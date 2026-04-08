@@ -5,14 +5,14 @@ import { execSync } from 'node:child_process'
 
 /**
  * When packaged: extraResources land directly in process.resourcesPath/
- * When dev: bootstrap writes runtimes into project root /.clawpilot-runtime/
+ * When dev: bootstrap writes runtimes into project root /.catclaw-runtime/
  */
 function getResourcesBase(): string {
   if (app.isPackaged) {
     return process.resourcesPath
   }
   // Dev mode: __dirname is out/main/, so go 2 levels up to project root
-  return path.join(__dirname, '../../.clawpilot-runtime')
+  return path.join(__dirname, '../../.catclaw-runtime')
 }
 
 export function getOpenClawResourcesPath(): string {
@@ -73,6 +73,6 @@ export function getOpenClawWorkspaceRoot(name = 'workspace-default'): string {
     : path.join(getOpenClawStateDir(), name)
 }
 
-export function getClawPilotDataDir(): string {
-  return path.join(app.getPath('userData'), 'clawpilot')
+export function getCatClawDataDir(): string {
+  return path.join(app.getPath('userData'), 'catclaw')
 }

@@ -45,7 +45,7 @@ export function AgentsPage(): React.ReactElement {
 
   useEffect(() => {
     void refresh()
-    void window.clawpilot.channels.listConfigured().then(setChannels)
+    void window.catclaw.channels.listConfigured().then(setChannels)
   }, [refresh])
 
   return (
@@ -59,7 +59,7 @@ export function AgentsPage(): React.ReactElement {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90"
+          className="btn-active-scale flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-3 w-3" /> New Profile
         </button>
@@ -77,6 +77,7 @@ export function AgentsPage(): React.ReactElement {
           <ProfileCard
             key={profile.id}
             profile={profile}
+            className="card-hover"
             globalModelRef={globalModelRef}
             routes={routes}
             onOpenSettings={() => setEditProfile(profile)}
@@ -125,12 +126,16 @@ function ProfileCard({
   routes,
   onOpenSettings,
   onDelete,
+  className,
+  style,
 }: {
   profile: RoutingProfile
   globalModelRef: string | null
   routes: Array<{ channelType: string; accountId: string; profileId: string }>
   onOpenSettings: () => void
   onDelete: () => void
+  className?: string
+  style?: React.CSSProperties
 }): React.ReactElement {
   const isDefault = profile.id === 'default'
   const boundRoutes = routes.filter((r) => r.profileId === profile.id)
@@ -139,9 +144,9 @@ function ProfileCard({
   const providerName = formatProviderName(effectiveModelRef)
 
   return (
-    <div className={`group relative rounded-xl border bg-card p-4 transition-colors ${
+    <div style={style} className={`group relative rounded-xl border bg-card p-4 transition-colors ${
       isDefault ? 'border-primary/20' : 'border-border hover:border-primary/30'
-    }`}>
+    } ${className ?? ''}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -165,14 +170,14 @@ function ProfileCard({
         <div className="flex items-center gap-1">
           <button
             onClick={onOpenSettings}
-            className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+            className="btn-active-scale rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
           >
             <Settings2 className="h-3.5 w-3.5" />
           </button>
           {!isDefault && (
             <button
               onClick={onDelete}
-              className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+              className="btn-active-scale rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -409,7 +414,7 @@ function CreateProfileDialog({
           <button
             onClick={() => void handleCreate()}
             disabled={saving || !name.trim()}
-            className="w-full rounded-lg bg-primary py-2 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="btn-active-scale w-full rounded-lg bg-primary py-2 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? 'Creating...' : 'Create'}
           </button>
@@ -528,7 +533,7 @@ function ProfileSettingsDialog({
                 <button
                   onClick={() => void handleSaveName()}
                   disabled={saving || !name.trim() || name.trim() === profile.name}
-                  className="rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="btn-active-scale rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   Save
                 </button>
@@ -545,7 +550,7 @@ function ProfileSettingsDialog({
             <button
               type="button"
               onClick={() => setEditingModel(!editingModel)}
-              className="rounded-lg bg-muted p-3 text-left hover:bg-accent transition-colors"
+              className="btn-active-scale rounded-lg bg-muted p-3 text-left hover:bg-accent transition-colors"
             >
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Model <span className="text-primary">(edit)</span>
@@ -600,14 +605,14 @@ function ProfileSettingsDialog({
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setEditingModel(false)}
-                  className="rounded-lg border border-border px-3 py-1 text-[11px] text-foreground hover:bg-muted"
+                  className="btn-active-scale rounded-lg border border-border px-3 py-1 text-[11px] text-foreground hover:bg-muted"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => void handleSaveModel()}
                   disabled={saving || (!useDefaultModel && (!modelProvider || !modelId))}
-                  className="rounded-lg bg-primary px-3 py-1 text-[11px] text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="btn-active-scale rounded-lg bg-primary px-3 py-1 text-[11px] text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save Model'}
                 </button>
@@ -634,7 +639,7 @@ function ProfileSettingsDialog({
                     </span>
                     <button
                       onClick={() => void handleUnbind(r.channelType, r.accountId)}
-                      className="text-[10px] text-destructive hover:underline"
+                      className="btn-active-scale text-[10px] text-destructive hover:underline"
                     >
                       Unbind
                     </button>

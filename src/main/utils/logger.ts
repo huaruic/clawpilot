@@ -5,7 +5,7 @@ import { app } from 'electron'
 let logStream: fs.WriteStream | null = null
 
 function getLogPath(): string {
-  return path.join(app.getPath('userData'), 'clawpilot', 'main.log')
+  return path.join(app.getPath('userData'), 'catclaw', 'main.log')
 }
 
 function getStream(): fs.WriteStream {

@@ -25,9 +25,13 @@ vi.mock('electron', () => ({
       appHandlers.set(event, handler)
     }),
     quit: mockQuit,
+    dock: { setIcon: vi.fn() },
   },
   BrowserWindow: MockBrowserWindow,
   shell: { openExternal: vi.fn() },
+  nativeImage: {
+    createFromPath: vi.fn(() => ({ isEmpty: () => true })),
+  },
 }))
 
 vi.mock('../utils/logger', () => ({

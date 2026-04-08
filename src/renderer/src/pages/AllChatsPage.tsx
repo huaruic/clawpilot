@@ -89,7 +89,7 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
         <h1 className="text-3xl font-bold text-foreground">Chats</h1>
         <button
           onClick={handleNewChat}
-          className="flex items-center gap-2 rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-card transition-colors hover:bg-foreground/90"
+          className="btn-active-scale flex items-center gap-2 rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-card transition-colors hover:bg-foreground/90"
         >
           <Plus className="h-4 w-4" />
           New chat
@@ -110,7 +110,7 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
 
       {/* Subheader */}
       <div className="mb-4 flex items-center gap-3 px-1">
-        <span className="text-sm text-muted-foreground">Your chats with ClawPilot</span>
+        <span className="text-sm text-muted-foreground">Your chats with CatClaw</span>
       </div>
 
       {/* Chat list */}
@@ -124,7 +124,7 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
             <button
               key={session.key}
               onClick={() => handleSelect(session.key)}
-              className="group flex w-full items-center gap-4 py-4 px-2 text-left transition-colors hover:bg-accent/30 rounded-lg"
+              className="btn-active-scale group flex w-full items-center gap-4 py-4 px-2 text-left transition-colors hover:bg-accent/30 rounded-lg"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{session.title}</p>
@@ -143,7 +143,7 @@ export function AllChatsPage({ onNavigate }: { onNavigate: (page: Page) => void 
       {hasMore && (
         <button
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-          className="mt-4 flex w-full items-center justify-center rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="btn-active-scale mt-4 flex w-full items-center justify-center rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
         >
           Show more
         </button>

@@ -18,7 +18,7 @@ const SUCCESS_HTML = `<!doctype html>
   <title>Authentication successful</title>
 </head>
 <body>
-  <p>Authentication successful. Return to ClawPilot to continue.</p>
+  <p>Authentication successful. Return to CatClaw to continue.</p>
 </body>
 </html>`
 

@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from 'react'
-
-/**
- * Pixel-style spinning loading indicator with elapsed time.
- * Matches Claude Code's `.: 2.6s` style.
- */
-
-const PIXEL_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+import { CatMascot } from './CatMascot'
 
 export function ThinkingIndicator({ startTime }: { startTime?: number }): React.ReactElement {
-  const [frame, setFrame] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const start = startTime ?? Date.now()
 
   useEffect(() => {
     const id = setInterval(() => {
-      setFrame((f) => (f + 1) % PIXEL_FRAMES.length)
       setElapsed((Date.now() - start) / 1000)
-    }, 80)
+    }, 100)
     return () => clearInterval(id)
   }, [start])
 
   const timeStr = elapsed < 10 ? `${elapsed.toFixed(1)}s` : `${Math.round(elapsed)}s`
 
   return (
-    <div className="flex items-center gap-2.5 py-2 px-1">
-      <span className="text-[14px] font-mono text-muted-foreground leading-none">
-        {PIXEL_FRAMES[frame]}
-      </span>
+    <div className="flex items-center gap-3 py-2 px-1">
+      <CatMascot mode="wagging" className="scale-75 -mb-2" />
       <span className="text-[12px] font-mono text-muted-foreground/60 tabular-nums">
         {timeStr}
       </span>

@@ -8,8 +8,8 @@ This directory is now limited to small repository assets.
 
 ## Runtime assets
 
-ClawPilot no longer commits bundled OpenClaw or Node runtime binaries to the repository.
+CatClaw no longer commits bundled OpenClaw or Node runtime binaries to the repository.
 
 - Run `npm run bootstrap` to download the pinned runtime assets.
-- Bootstrap output is written to `.clawpilot-runtime/`.
-- `electron-builder` packages `.clawpilot-runtime/` into release builds.
+- Bootstrap output is written to `.catclaw-runtime/`.
+- `electron-builder` packages `.catclaw-runtime/` into release builds.

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to ClawPilot.
+Thanks for contributing to CatClaw.
 
 ## Development Flow
 
@@ -27,10 +27,10 @@ npm run package:mac:test
 
 ## Runtime Assets
 
-ClawPilot does not commit packaged runtime binaries to Git history.
+CatClaw does not commit packaged runtime binaries to Git history.
 
 - `npm run bootstrap` downloads the pinned OpenClaw package and platform Node runtime.
-- Generated assets are written to `.clawpilot-runtime/`.
+- Generated assets are written to `.catclaw-runtime/`.
 - Release artifacts belong in GitHub Releases, not in the repository tree.
 
 ## Pull Request Guidelines

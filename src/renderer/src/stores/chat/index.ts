@@ -118,7 +118,7 @@ export const useChatStore = create<ChatStore>()(
 
       fetchSessions: async () => {
         try {
-          const raw = await window.clawpilot.chat.sessions()
+          const raw = await window.catclaw.chat.sessions()
           const list = normalizeSessionsHelper(raw, get().sessionLabels)
           set({ sessions: list })
         } catch {
@@ -260,7 +260,7 @@ export const useChatStore = create<ChatStore>()(
       isSessionStreaming: (sessionKey) => get().streaming[sessionKey] ?? false,
     }),
     {
-      name: 'clawpilot-chat',
+      name: 'catclaw-chat',
       partialize: (state) => ({
         activeSession: state.activeSession,
         drafts: state.drafts,

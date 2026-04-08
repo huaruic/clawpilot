@@ -1,12 +1,12 @@
-# ClawPilot
+# CatClaw
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-ClawPilot 是一个基于 OpenClaw 的零配置本地 AI Agent 桌面应用。
+CatClaw 是一个基于 OpenClaw 的零配置本地 AI Agent 桌面应用。
 
 它把本地 OpenClaw runtime 封装在桌面界面之后，提供聊天、Provider 配置、技能管理、工作区控制，以及更适合终端用户的本地运行体验。
 
-## 为什么是 ClawPilot
+## 为什么是 CatClaw
 
 - 不需要手工搭建 OpenClaw，即可运行本地 AI Agent 桌面端
 - 通过图形界面管理 Provider 和本地模型兜底能力
@@ -52,12 +52,12 @@ npm run package:mac:test
 
 ## Runtime 打包策略
 
-ClawPilot 不会把打包后的 runtime 二进制直接提交到 Git 历史。
+CatClaw 不会把打包后的 runtime 二进制直接提交到 Git 历史。
 
 - Runtime 版本定义在 `runtime-manifest.json`
 - `npm run bootstrap` 会下载固定版本的 OpenClaw 包和平台 Node.js runtime
-- 生成产物写入 `.clawpilot-runtime/`
-- `electron-builder` 会把 `.clawpilot-runtime/` 打进最终桌面应用
+- 生成产物写入 `.catclaw-runtime/`
+- `electron-builder` 会把 `.catclaw-runtime/` 打进最终桌面应用
 
 ## 仓库结构
 

@@ -1,12 +1,12 @@
-# ClawPilot
+# CatClaw
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-ClawPilot is a zero-setup local AI agent desktop powered by OpenClaw.
+CatClaw is a zero-setup local AI agent desktop powered by OpenClaw.
 
 It packages a local OpenClaw runtime behind a desktop UI for chat, provider setup, skills management, workspace control, and diagnostics-friendly local operation.
 
-## Why ClawPilot
+## Why CatClaw
 
 - Run a local AI agent desktop without manually wiring OpenClaw.
 - Manage providers and local fallback models from a desktop UI.
@@ -52,12 +52,12 @@ npm run package:mac:test
 
 ## Runtime Packaging
 
-ClawPilot does not commit packaged runtime binaries to Git history.
+CatClaw does not commit packaged runtime binaries to Git history.
 
 - Runtime versions are pinned in `runtime-manifest.json`.
 - `npm run bootstrap` downloads the required OpenClaw package and platform Node.js runtime.
-- Generated runtime assets are written to `.clawpilot-runtime/`.
-- `electron-builder` packages `.clawpilot-runtime/` into the final desktop app.
+- Generated runtime assets are written to `.catclaw-runtime/`.
+- `electron-builder` packages `.catclaw-runtime/` into the final desktop app.
 
 ## Repository Structure
 

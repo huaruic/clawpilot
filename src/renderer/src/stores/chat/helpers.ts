@@ -165,7 +165,7 @@ function firstStr(...values: unknown[]): string {
  * Handles multiple response shapes defensively.
  *
  * @param sessionLabels — local labels derived from first user message. These take
- *   priority over Gateway's displayName (which is always "ClawPilot" for webchat).
+ *   priority over Gateway's displayName (which is always "CatClaw" for webchat).
  */
 export function normalizeSessions(
   raw: unknown,
@@ -202,7 +202,7 @@ export function normalizeSessions(
       const originLabel = typeof o.origin === 'object' && o.origin !== null
         ? firstStr((o.origin as Record<string, unknown>).label)
         : ''
-      const genericNames = new Set(['ClawPilot', 'webchat', ''])
+      const genericNames = new Set(['CatClaw', 'CatClaw', 'webchat', ''])
       const title = sessionLabels[key]
         || firstStr(o.derivedTitle, o.subject)
         || (!genericNames.has(originLabel) ? originLabel : '')

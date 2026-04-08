@@ -46,7 +46,7 @@ export function SecurityPage(): React.ReactElement {
       <h1 className="text-lg font-semibold text-foreground">{t('app.security.title')}</h1>
 
       {/* Sandbox status */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border bg-card p-4 card-hover">
         <h3 className="mb-1 text-sm font-medium text-foreground">{t('app.security.sandboxStatus')}</h3>
         <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
@@ -60,7 +60,7 @@ export function SecurityPage(): React.ReactElement {
       </div>
 
       {/* Mode selection */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border bg-card p-4 card-hover">
         <h3 className="mb-3 text-sm font-medium text-foreground">{t('app.security.sandboxMode')}</h3>
         <div className="space-y-2">
           {modes.map((m) => (
@@ -92,7 +92,7 @@ export function SecurityPage(): React.ReactElement {
       </div>
 
       {/* Tool permissions */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border bg-card p-4 card-hover">
         <h3 className="mb-3 text-sm font-medium text-foreground">{t('app.security.toolPermissions')}</h3>
         <div className="space-y-2">
           {tools.map((tp) => (
@@ -121,7 +121,7 @@ export function SecurityPage(): React.ReactElement {
       </div>
 
       {/* Elevated mode */}
-      <div className="rounded-xl border border-warning/30 bg-card p-4">
+      <div className="rounded-xl border border-warning/30 bg-card p-4 card-hover">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
           <div className="flex-1">
@@ -133,11 +133,11 @@ export function SecurityPage(): React.ReactElement {
               </span>
               <button
                 onClick={() => setElevated(!elevated)}
-                className={`rounded-lg border px-3 py-1 text-xs transition-colors ${
+                className={`btn-active-scale ${`rounded-lg border px-3 py-1 text-xs transition-colors ${
                   elevated
                     ? 'border-border text-foreground hover:bg-accent'
                     : 'border-warning/50 text-warning hover:bg-warning/10'
-                }`}
+                }`}`}
               >
                 {elevated ? t('app.security.disable') : t('app.security.enable')} Elevated
               </button>

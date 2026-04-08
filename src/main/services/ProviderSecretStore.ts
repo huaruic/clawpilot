@@ -1,13 +1,13 @@
 import { safeStorage } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { getClawPilotDataDir } from './RuntimeLocator'
+import { getCatClawDataDir } from './RuntimeLocator'
 import { listManagedProviderNames, loadManagedProviderApiKey } from './OpenClawAuthProfileWriter'
 
 type SecretsFile = Record<string, string> // providerName → base64(encrypted)
 
 function secretsPath(): string {
-  return path.join(getClawPilotDataDir(), 'secrets.json')
+  return path.join(getCatClawDataDir(), 'secrets.json')
 }
 
 async function readSecrets(): Promise<SecretsFile> {

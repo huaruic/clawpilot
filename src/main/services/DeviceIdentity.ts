@@ -12,7 +12,7 @@ interface StoredDevice {
 let cached: StoredDevice | null = null
 
 function deviceFilePath(): string {
-  return path.join(app.getPath('userData'), 'clawpilot', 'device.json')
+  return path.join(app.getPath('userData'), 'catclaw', 'device.json')
 }
 
 function base64UrlEncode(buf: Buffer): string {

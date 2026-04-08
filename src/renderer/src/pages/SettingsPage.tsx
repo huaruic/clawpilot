@@ -45,7 +45,7 @@ export function SettingsPage(): React.ReactElement {
     setWorkspaceBusy('open')
     setWorkspaceError(null)
     try {
-      const result = await window.clawpilot.app.openDirectory(workspaceInput)
+      const result = await window.catclaw.app.openDirectory(workspaceInput)
       if (!result.ok) {
         setWorkspaceError(result.error ?? t('app.settings.openWorkspaceFailed'))
       }
@@ -83,11 +83,11 @@ export function SettingsPage(): React.ReactElement {
                 key={opt.value}
                 disabled={saving}
                 onClick={() => void handleThemeChange(opt.value)}
-                className={`rounded-lg px-4 py-1.5 text-xs transition-colors ${
+                className={`btn-active-scale ${`rounded-lg px-4 py-1.5 text-xs transition-colors ${
                   settings.theme === opt.value
                     ? 'bg-primary text-primary-foreground'
                     : 'border border-border text-muted-foreground hover:bg-accent'
-                } disabled:opacity-50`}
+                }`} disabled:opacity-50`}
               >
                 {opt.label}
               </button>
@@ -104,11 +104,11 @@ export function SettingsPage(): React.ReactElement {
                 key={opt.value}
                 disabled={saving}
                 onClick={() => void handleLanguageChange(opt.value)}
-                className={`rounded-lg px-4 py-1.5 text-xs transition-colors ${
+                className={`btn-active-scale ${`rounded-lg px-4 py-1.5 text-xs transition-colors ${
                   settings.language === opt.value
                     ? 'bg-primary text-primary-foreground'
                     : 'border border-border text-muted-foreground hover:bg-accent'
-                } disabled:opacity-50`}
+                }`} disabled:opacity-50`}
               >
                 {opt.label}
               </button>
@@ -125,7 +125,7 @@ export function SettingsPage(): React.ReactElement {
       </div>
 
       {/* Advanced */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4 card-hover">
         <div className="flex items-center gap-2">
           <Monitor className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium text-foreground">{t('app.settings.workspaceTitle')}</h3>
@@ -144,7 +144,7 @@ export function SettingsPage(): React.ReactElement {
             <button
               onClick={() => void handleOpenWorkspace()}
               disabled={!workspaceInput.trim() || workspaceBusy !== null}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              className="btn-active-scale flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <FolderOpen className="h-3.5 w-3.5" />
               {workspaceBusy === 'open' ? t('app.settings.openingWorkspace') : t('app.settings.openWorkspace')}

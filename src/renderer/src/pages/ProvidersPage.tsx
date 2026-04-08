@@ -443,7 +443,7 @@ export function ProvidersPage(): React.ReactElement {
                   {!isDefault && (
                     <button
                       onClick={() => void handleSetDefault(account)}
-                      className="p-2 text-muted-foreground transition-colors hover:text-primary"
+                      className="btn-active-scale p-2 text-muted-foreground transition-colors hover:text-primary"
                       title="设为默认"
                     >
                       <Star className="h-4 w-4" />
@@ -451,14 +451,14 @@ export function ProvidersPage(): React.ReactElement {
                   )}
                   <button
                     onClick={() => void openEdit(account)}
-                    className="p-2 text-muted-foreground transition-colors hover:text-foreground"
+                    className="btn-active-scale p-2 text-muted-foreground transition-colors hover:text-foreground"
                     title="编辑"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => void handleDelete(account.id)}
-                    className="p-2 text-muted-foreground transition-colors hover:text-destructive"
+                    className="btn-active-scale p-2 text-muted-foreground transition-colors hover:text-destructive"
                     title="删除"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -477,11 +477,11 @@ export function ProvidersPage(): React.ReactElement {
         <div>
           <p className="mb-3 text-sm font-medium text-foreground">添加更多提供商</p>
           <div className="grid grid-cols-4 gap-2">
-            {unconfiguredVendors.map((vendor) => (
+            {unconfiguredVendors.map((vendor, index) => (
               <button
                 key={vendor.id}
                 onClick={() => openVendor(vendor)}
-                className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card"
+                className="btn-active-scale flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card card-hover"
               >
                 <ProviderIcon vendorId={vendor.id} />
                 <div className="text-center">
@@ -496,7 +496,7 @@ export function ProvidersPage(): React.ReactElement {
             {/* Custom provider */}
             <button
               onClick={openCustom}
-              className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card"
+              className="btn-active-scale flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-3 py-5 transition-colors hover:border-primary/40 hover:bg-card"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
                 <Settings className="h-5 w-5" />
@@ -533,22 +533,22 @@ export function ProvidersPage(): React.ReactElement {
             <div className="flex gap-2">
               <button
                 onClick={() => setForm((f) => ({ ...f, authMode: 'oauth' }))}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                className={`btn-active-scale ${`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
                   form.authMode === 'oauth'
                     ? 'bg-primary text-primary-foreground'
                     : 'border border-border text-muted-foreground hover:text-foreground'
-                }`}
+                }`}`}
               >
                 <LogIn className="h-3.5 w-3.5" />
                 OAuth 登录
               </button>
               <button
                 onClick={() => setForm((f) => ({ ...f, authMode: 'api_key' }))}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                className={`btn-active-scale ${`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors ${
                   form.authMode === 'api_key'
                     ? 'bg-primary text-primary-foreground'
                     : 'border border-border text-muted-foreground hover:text-foreground'
-                }`}
+                }`}`}
               >
                 <Key className="h-3.5 w-3.5" />
                 API Key
@@ -574,7 +574,7 @@ export function ProvidersPage(): React.ReactElement {
               ) : (
                 <button
                   onClick={() => form.vendor && void handleOAuthLogin(form.vendor)}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                  className="btn-active-scale flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm text-primary-foreground hover:bg-primary/90"
                 >
                   <LogIn className="h-4 w-4" />
                   使用 {form.vendor?.name} 登录
@@ -627,7 +627,7 @@ export function ProvidersPage(): React.ReactElement {
                   <button
                     type="button"
                     onClick={() => setShowKey(!showKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="btn-active-scale absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
@@ -665,11 +665,11 @@ export function ProvidersPage(): React.ReactElement {
                       <button
                         key={opt.value}
                         onClick={() => setForm((f) => ({ ...f, apiProtocol: opt.value }))}
-                        className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${
+                        className={`btn-active-scale ${`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${
                           form.apiProtocol === opt.value
                             ? 'bg-primary text-primary-foreground'
                             : 'border border-border text-muted-foreground hover:text-foreground'
-                        }`}
+                        }`}`}
                       >
                         {opt.label}
                       </button>
@@ -683,7 +683,7 @@ export function ProvidersPage(): React.ReactElement {
                 <div>
                   <button
                     onClick={() => setForm((f) => ({ ...f, showAdvanced: !f.showAdvanced }))}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    className="btn-active-scale flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                   >
                     {form.showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     高级配置
@@ -720,7 +720,7 @@ export function ProvidersPage(): React.ReactElement {
                   testing ||
                   saving
                 }
-                className="rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                className="btn-active-scale rounded-lg bg-primary px-4 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {testing ? t('app.providers.testing') : saving ? t('app.providers.saving') : t('app.providers.save')}
               </button>
