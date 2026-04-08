@@ -4,26 +4,39 @@ Use this checklist after creating the remote repository.
 
 ## Suggested GitHub Description
 
-`Local AI agent desktop app powered by OpenClaw, Electron, and provider-ready runtime packaging.`
+`CatClaw - Privacy-first local AI agent desktop app. Chat, automate, and manage AI channels (WeChat, Feishu, Telegram, DingTalk) without cloud dependency. Powered by OpenClaw.`
 
 ## Suggested Topics
 
 - `ai-agent`
+- `ai-desktop`
+- `catclaw`
+- `chatgpt-alternative`
 - `desktop-app`
+- `dingtalk`
 - `electron`
-- `local-ai`
+- `feishu`
+- `lark`
 - `llm`
+- `local-ai`
+- `offline-ai`
 - `ollama`
 - `openclaw`
+- `privacy-first`
+- `productivity`
 - `react`
 - `typescript`
-- `productivity`
+- `wechat`
+
+## Website
+
+`https://catclaw.app`
 
 ## Suggested Social Preview
 
 - Size: `1280x640`
 - Visual: app screenshot or product hero image
-- Include: `CatClaw`, `Local AI Agent Desktop`, `Powered by OpenClaw`
+- Include: `CatClaw`, `Privacy-First Local AI Agent Desktop`, `Powered by OpenClaw`
 
 ## Releases
 
