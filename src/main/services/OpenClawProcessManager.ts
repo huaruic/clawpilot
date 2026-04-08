@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, execSync, type ChildProcess } from 'node:child_process'
 import { RuntimeState } from '../state/RuntimeState'
 import {
   getBundledNodePath,
@@ -214,6 +214,7 @@ export class OpenClawProcessManager {
   private buildEnv(): NodeJS.ProcessEnv {
     return {
       ...process.env,
+      ...getSystemProxyEnv(),
       OPENCLAW_STATE_DIR: getOpenClawStateDir(),
       OPENCLAW_NO_RESPAWN: '1',
       OPENCLAW_NODE_OPTIONS_READY: '1',
@@ -270,6 +271,56 @@ export class OpenClawProcessManager {
     if (this.stderrBuffer.length > STDERR_BUFFER_LINES) {
       this.stderrBuffer = this.stderrBuffer.slice(-STDERR_BUFFER_LINES)
     }
+  }
+}
+
+/**
+ * Read macOS system proxy settings via `scutil --proxy`.
+ * GUI apps don't inherit terminal env vars (http_proxy, etc.),
+ * so we detect the system proxy and inject them for the child process.
+ */
+function getSystemProxyEnv(): Record<string, string> {
+  // Skip if already set (e.g. launched from terminal)
+  if (process.env.http_proxy || process.env.HTTP_PROXY) return {}
+  if (process.platform !== 'darwin') return {}
+
+  try {
+    const raw = execSync('scutil --proxy', { encoding: 'utf-8', timeout: 3000 })
+    const env: Record<string, string> = {}
+
+    // HTTP proxy
+    if (/HTTPEnable\s*:\s*1/.test(raw)) {
+      const host = raw.match(/HTTPProxy\s*:\s*(\S+)/)?.[1]
+      const port = raw.match(/HTTPPort\s*:\s*(\d+)/)?.[1]
+      if (host && port) {
+        env.http_proxy = `http://${host}:${port}`
+      }
+    }
+
+    // HTTPS proxy
+    if (/HTTPSEnable\s*:\s*1/.test(raw)) {
+      const host = raw.match(/HTTPSProxy\s*:\s*(\S+)/)?.[1]
+      const port = raw.match(/HTTPSPort\s*:\s*(\d+)/)?.[1]
+      if (host && port) {
+        env.https_proxy = `http://${host}:${port}`
+      }
+    }
+
+    // SOCKS proxy
+    if (/SOCKSEnable\s*:\s*1/.test(raw)) {
+      const host = raw.match(/SOCKSProxy\s*:\s*(\S+)/)?.[1]
+      const port = raw.match(/SOCKSPort\s*:\s*(\d+)/)?.[1]
+      if (host && port) {
+        env.all_proxy = `socks5://${host}:${port}`
+      }
+    }
+
+    if (Object.keys(env).length > 0) {
+      mainLogger.info(`[ProcessManager] Injecting system proxy: ${JSON.stringify(env)}`)
+    }
+    return env
+  } catch {
+    return {}
   }
 }
 

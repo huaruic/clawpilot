@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, nativeImage } from 'electron'
-import { join } from 'node:path'
 import { mainLogger } from './utils/logger'
+import { getAppResourcePath } from './services/RuntimeLocator'
 
 export interface AppLifecycleDeps {
   processManager: {
@@ -30,8 +30,7 @@ export class AppLifecycle {
 
   private initDockIcon(): void {
     if (process.platform === 'darwin') {
-      const iconPath = join(__dirname, '../../build/icon.png')
-      const image = nativeImage.createFromPath(iconPath)
+      const image = nativeImage.createFromPath(getAppResourcePath('build/icon.png'))
       if (!image.isEmpty()) {
         app.dock.setIcon(image)
       }
@@ -110,7 +109,7 @@ export class AppLifecycle {
       minHeight: 600,
       titleBarStyle: 'hiddenInset',
       backgroundColor: '#0a0a0a',
-      icon: join(__dirname, '../../build/icon.png'),
+      icon: getAppResourcePath('build/icon.png'),
       webPreferences: {
         preload: preloadPath,
         sandbox: false,

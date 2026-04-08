@@ -12,9 +12,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "package": "npm run bootstrap && npm run build && electron-builder",
-    "package:mac": "npm run bootstrap && npm run build && electron-builder --mac",
-    "package:mac:test": "npm run bootstrap && npm run build && electron-builder --mac dir && bash scripts/package-mac-test.sh",
-    "package:win": "npm run bootstrap && npm run build && electron-builder --win"
+    "package:mac": "npm run bootstrap && npm run build && node scripts/verify-package-resources.mjs && electron-builder --mac",
+    "package:mac:dir": "npm run bootstrap && npm run build && node scripts/verify-package-resources.mjs && electron-builder --mac dir",
+    "package:mac:test": "npm run bootstrap && npm run build && node scripts/verify-package-resources.mjs && electron-builder --mac dir && bash scripts/package-mac-test.sh",
+    "package:win": "npm run bootstrap && npm run build && node scripts/verify-package-resources.mjs && electron-builder --win"
   },
   "keywords": [
     "ai-agent",
@@ -104,6 +105,18 @@
       {
         "from": ".catclaw-runtime/openclaw",
         "to": "openclaw"
+      },
+      {
+        "from": "resources/trayTemplate.png",
+        "to": "resources/trayTemplate.png"
+      },
+      {
+        "from": "resources/trayTemplate@2x.png",
+        "to": "resources/trayTemplate@2x.png"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "build/icon.png"
       }
     ],
     "mac": {

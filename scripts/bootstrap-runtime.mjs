@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -109,6 +110,13 @@ function bootstrapOpenClaw(tempDir) {
 
   rmSync(openclawOutDir, { recursive: true, force: true })
   cpSync(packageDir, openclawOutDir, { recursive: true })
+
+  // OpenClaw inlines extension code into dist/*.js but leaves their npm
+  // dependencies under dist/extensions/<name>/node_modules/.  Node resolves
+  // imports from dist/ upward, so it never looks inside individual extension
+  // dirs.  Fix: hoist every extension's node_modules into dist/node_modules/
+  // so the inlined imports resolve correctly in both dev and packaged mode.
+  hoistExtensionNodeModules(path.join(openclawOutDir, 'dist'))
 }
 
 async function bootstrapNode(tempDir) {
@@ -168,6 +176,47 @@ async function downloadFile(url, destPath) {
   }
   const bytes = Buffer.from(await response.arrayBuffer())
   writeFileSync(destPath, bytes)
+}
+
+function hoistExtensionNodeModules(distDir) {
+  const extRoot = path.join(distDir, 'extensions')
+  if (!existsSync(extRoot)) return
+
+  const hoistedDir = path.join(distDir, 'node_modules')
+  let hoisted = 0
+
+  for (const extName of readdirSync(extRoot)) {
+    const extNM = path.join(extRoot, extName, 'node_modules')
+    if (!existsSync(extNM)) continue
+
+    for (const pkg of readdirSync(extNM)) {
+      // Skip .package-lock.json and similar dotfiles
+      if (pkg.startsWith('.')) continue
+
+      const src = path.join(extNM, pkg)
+      const dest = path.join(hoistedDir, pkg)
+
+      // Scoped packages (e.g. @larksuiteoapi)
+      if (pkg.startsWith('@')) {
+        mkdirSync(dest, { recursive: true })
+        for (const sub of readdirSync(src)) {
+          const subSrc = path.join(src, sub)
+          const subDest = path.join(dest, sub)
+          if (!existsSync(subDest)) {
+            cpSync(subSrc, subDest, { recursive: true })
+            hoisted++
+          }
+        }
+      } else if (!existsSync(dest)) {
+        cpSync(src, dest, { recursive: true })
+        hoisted++
+      }
+    }
+  }
+
+  if (hoisted > 0) {
+    console.log(`Hoisted ${hoisted} extension dependencies into dist/node_modules/`)
+  }
 }
 
 await main().catch((error) => {
