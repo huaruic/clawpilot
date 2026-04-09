@@ -134,13 +134,19 @@ describe('AppLifecycle', () => {
       expect(appHandlers.has('activate')).toBe(true)
     })
 
-    it('window-all-closed does NOT trigger handleQuit (tray mode)', async () => {
+    it('window-all-closed behavior depends on platform', async () => {
       const handler = appHandlers.get('window-all-closed')!
       await handler()
 
-      expect(deps.processManager.dispose).not.toHaveBeenCalled()
-      expect(deps.processManager.stop).not.toHaveBeenCalled()
-      expect(mockQuit).not.toHaveBeenCalled()
+      if (process.platform === 'darwin') {
+        // macOS: tray mode — no quit
+        expect(deps.processManager.dispose).not.toHaveBeenCalled()
+        expect(deps.processManager.stop).not.toHaveBeenCalled()
+        expect(mockQuit).not.toHaveBeenCalled()
+      } else {
+        // Windows/Linux: quit app
+        expect(mockQuit).toHaveBeenCalled()
+      }
     })
 
     it('before-quit triggers handleQuit with event.preventDefault', async () => {

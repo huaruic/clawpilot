@@ -1,7 +1,11 @@
+import path from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import JSON5 from 'json5'
 
 // ── Mocks ────────────────────────────────────────────────────────
+
+const FAKE_STATE = path.join('/fake', 'state')
+const FAKE_CONFIG = path.join(FAKE_STATE, 'openclaw.json')
 
 const writtenFiles = new Map<string, string>()
 
@@ -17,7 +21,7 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 vi.mock('../services/RuntimeLocator', () => ({
-  getOpenClawStateDir: vi.fn(() => '/fake/state'),
+  getOpenClawStateDir: vi.fn(() => FAKE_STATE),
 }))
 
 vi.mock('../services/RoutingService', () => ({
@@ -125,7 +129,7 @@ describe('ChannelConfigService', () => {
         channelId: 'c1',
       })
 
-      const written = writtenFiles.get('/fake/state/openclaw.json')
+      const written = writtenFiles.get(FAKE_CONFIG)
       const parsed = JSON5.parse(written!)
       const account = parsed.channels.discord.accounts.main
       expect(account.token).toBe('bot-token')
@@ -138,7 +142,7 @@ describe('ChannelConfigService', () => {
 
       await saveChannelConfig('telegram', { botToken: '123:ABC' })
 
-      const written = writtenFiles.get('/fake/state/openclaw.json')
+      const written = writtenFiles.get(FAKE_CONFIG)
       const parsed = JSON5.parse(written!)
       expect(parsed.plugins.allow).toContain('telegram')
     })
@@ -155,7 +159,7 @@ describe('ChannelConfigService', () => {
 
       await deleteChannelConfig('telegram')
 
-      const written = writtenFiles.get('/fake/state/openclaw.json')
+      const written = writtenFiles.get(FAKE_CONFIG)
       const parsed = JSON5.parse(written!)
       expect(parsed.channels.telegram).toBeUndefined()
     })
@@ -168,7 +172,7 @@ describe('ChannelConfigService', () => {
 
       await deleteChannelConfig('discord')
 
-      const written = writtenFiles.get('/fake/state/openclaw.json')
+      const written = writtenFiles.get(FAKE_CONFIG)
       const parsed = JSON5.parse(written!)
       expect(parsed.plugins.allow).not.toContain('discord')
       expect(parsed.plugins.allow).toContain('telegram')
