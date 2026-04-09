@@ -53,7 +53,7 @@ jobs:
 
       # ── Package ──────────────────────────────────────────────────
       - name: Package Windows NSIS installer
-        run: npx electron-builder --win
+        run: npx electron-builder --win --publish never
 
       - name: Verify installer exists
         run: |
@@ -68,14 +68,10 @@ jobs:
       # ── Smoke Test ───────────────────────────────────────────────
       - name: Smoke test - launch app and verify startup
         run: |
-          $appExe = "dist/win-arm64-unpacked/CatClaw.exe"
-
-          # Fallback: find the unpacked exe if arch dir differs
-          if (!(Test-Path $appExe)) {
-            $appExe = Get-ChildItem -Path dist -Recurse -Filter "CatClaw.exe" |
-              Where-Object { $_.DirectoryName -like "*unpacked*" } |
-              Select-Object -First 1 -ExpandProperty FullName
-          }
+          # Find the unpacked exe (arch dir varies: win-unpacked, win-arm64-unpacked, etc.)
+          $appExe = Get-ChildItem -Path dist -Recurse -Filter "CatClaw.exe" |
+            Where-Object { $_.DirectoryName -like "*unpacked*" } |
+            Select-Object -First 1 -ExpandProperty FullName
 
           if (!$appExe -or !(Test-Path $appExe)) {
             Write-Error "Unpacked CatClaw.exe not found"
