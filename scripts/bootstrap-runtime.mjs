@@ -15,7 +15,9 @@ import {
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
+
+const isWin = process.platform === 'win32'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
@@ -94,6 +96,7 @@ function bootstrapOpenClaw(tempDir) {
   execFileSync('npm', ['pack', `${openclawPackage}@${openclawVersion}`], {
     cwd: npmPackDir,
     stdio: 'inherit',
+    shell: isWin,
   })
 
   const tarballName = `${openclawPackage}-${openclawVersion}.tgz`
@@ -106,6 +109,7 @@ function bootstrapOpenClaw(tempDir) {
   execFileSync('npm', ['install', '--omit=dev', '--no-fund', '--no-audit'], {
     cwd: packageDir,
     stdio: 'inherit',
+    shell: isWin,
   })
 
   rmSync(openclawOutDir, { recursive: true, force: true })
@@ -132,7 +136,8 @@ async function bootstrapNode(tempDir) {
   mkdirSync(extractDir, { recursive: true })
 
   if (archiveName.endsWith('.zip')) {
-    execFileSync('unzip', ['-q', archivePath, '-d', extractDir], { stdio: 'inherit' })
+    // Windows has no unzip but its built-in tar handles zip archives
+    execFileSync('tar', ['-xf', archivePath, '-C', extractDir], { stdio: 'inherit' })
   } else {
     execFileSync('tar', ['-xzf', archivePath, '-C', extractDir], { stdio: 'inherit' })
   }
