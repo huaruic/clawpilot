@@ -27,8 +27,11 @@ const processManager = new OpenClawProcessManager(state)
 let wsClient: WsGatewayClient | null = null
 let wsConnectInFlight = false
 
-// Resolve tray icon path — macOS uses template images (black + transparent)
-const trayIconPath = getAppResourcePath('resources/trayTemplate.png')
+// macOS template images (black + alpha) adapt to menu bar theme automatically.
+// Windows needs a colored icon for the taskbar tray.
+const trayIconPath = process.platform === 'darwin'
+  ? getAppResourcePath('resources/trayTemplate.png')
+  : getAppResourcePath('build/icon.png')
 
 const trayManager = new TrayManager({
   onShowWindow: () => lifecycle.ensureWindow(),

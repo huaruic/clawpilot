@@ -3,6 +3,8 @@ import type { RuntimeSnapshot } from '../main/state/RuntimeState'
 import type { AppSettings } from '../main/services/AppSettingsStore'
 
 contextBridge.exposeInMainWorld('catclaw', {
+  platform: process.platform,
+
   // ── Runtime ──────────────────────────────────────────────────────
   app: {
     start: (): Promise<RuntimeSnapshot> => ipcRenderer.invoke('app:start'),

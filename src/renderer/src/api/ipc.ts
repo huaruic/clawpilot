@@ -139,6 +139,7 @@ export interface SkillsListResult {
 }
 
 export interface CatClawAPI {
+  platform: string
   app: {
     start: () => Promise<RuntimeSnapshot>
     stop: () => Promise<RuntimeSnapshot>

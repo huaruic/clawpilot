@@ -48,8 +48,10 @@ export class AppLifecycle {
   /** Register all app lifecycle event handlers in one place. */
   registerAppEvents(): void {
     app.on('window-all-closed', () => {
-      // Tray mode: keep app alive in background.
-      // User quits via Cmd+Q, Dock Quit, or tray menu.
+      if (process.platform !== 'darwin') {
+        void this.handleQuit()
+      }
+      // macOS: tray mode — keep app alive in background.
     })
 
     app.on('before-quit', (event) => {
@@ -102,12 +104,21 @@ export class AppLifecycle {
   createWindow(): BrowserWindow {
     const { preloadPath, rendererUrl, rendererHtmlPath } = this.deps.createWindowOptions
 
+    const isMac = process.platform === 'darwin'
+
     this.mainWindow = new BrowserWindow({
       width: 1200,
       height: 800,
       minWidth: 900,
       minHeight: 600,
-      titleBarStyle: 'hiddenInset',
+      titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+      ...(isMac ? {} : {
+        titleBarOverlay: {
+          color: '#0a0a0a',
+          symbolColor: '#ffffff',
+          height: 36,
+        },
+      }),
       backgroundColor: '#0a0a0a',
       icon: getAppResourcePath('build/icon.png'),
       webPreferences: {

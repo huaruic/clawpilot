@@ -210,8 +210,8 @@ export function AppSidebar({ currentPage, onNavigate }: Props): React.ReactEleme
 
   return (
     <Sidebar className="select-none border-r border-border">
-      {/* Logo + runtime status (macOS drag region) */}
-      <div className="flex items-center gap-2 p-4 pt-10 [-webkit-app-region:drag]">
+      {/* Logo + runtime status (drag region for frameless title bar) */}
+      <div className={`flex items-center gap-2 p-4 [-webkit-app-region:drag] ${window.catclaw.platform === 'darwin' ? 'pt-10' : 'pt-2'}`}>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
           <PawPrint className="h-4 w-4" />
         </div>
