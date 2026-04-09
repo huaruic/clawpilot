@@ -5,6 +5,9 @@ on:
   push:
     branches: [feat/windows-support, feat/rebrand-catclaw]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-verify:
     runs-on: windows-latest
@@ -56,19 +59,24 @@ jobs:
         run: npx electron-builder --win --publish never
 
       - name: Verify installer exists
+        id: meta
         run: |
-          $exe = Get-ChildItem -Path dist -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*" }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $exe = Get-ChildItem -Path dist -Filter "*Setup*.exe" | Select-Object -First 1
           if (!$exe) {
             Write-Error "No installer .exe found in dist/"
             exit 1
           }
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "exe_path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
           Write-Host "Installer: $($exe.Name) ($([math]::Round($exe.Length / 1MB, 1)) MB)"
         shell: pwsh
 
       # ── Smoke Test ───────────────────────────────────────────────
       - name: Smoke test - launch app and verify startup
+        env:
+          ELECTRON_DISABLE_GPU: "1"
         run: |
-          # Find the unpacked exe (arch dir varies: win-unpacked, win-arm64-unpacked, etc.)
           $appExe = Get-ChildItem -Path dist -Recurse -Filter "CatClaw.exe" |
             Where-Object { $_.DirectoryName -like "*unpacked*" } |
             Select-Object -First 1 -ExpandProperty FullName
@@ -79,11 +87,8 @@ jobs:
           }
 
           Write-Host "Launching: $appExe"
-
-          # Start the Electron app
           $proc = Start-Process -FilePath $appExe -PassThru
 
-          # Wait up to 15 seconds for it to stay alive (not crash immediately)
           $crashed = $false
           for ($i = 0; $i -lt 15; $i++) {
             Start-Sleep -Seconds 1
@@ -100,8 +105,7 @@ jobs:
 
           Write-Host "App running (PID: $($proc.Id)) after 15s - startup OK"
 
-          # Check that the bundled Node runtime is reachable
-          $nodeExe = Join-Path (Split-Path $appExe) "resources/runtime/win/node.exe"
+          $nodeExe = Join-Path (Split-Path $appExe) "resources\runtime\win\node.exe"
           if (Test-Path $nodeExe) {
             $nodeVer = & $nodeExe --version 2>&1
             Write-Host "Bundled Node: $nodeVer"
@@ -109,44 +113,41 @@ jobs:
             Write-Warning "Bundled node.exe not found at expected path (non-fatal)"
           }
 
-          # Gracefully stop
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           Write-Host "Smoke test passed"
         shell: pwsh
 
-      # ── Release ─────────────────────────────────────────────────
-      - name: Get version and installer path
-        id: meta
-        run: |
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          $exe = Get-ChildItem -Path dist -Filter "*Setup*.exe" | Select-Object -First 1
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-          echo "exe_path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
-          echo "exe_name=$($exe.Name)" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $version, Installer: $($exe.Name)"
-        shell: pwsh
-
-      - name: Create or update draft release
+      # ── Release ──────────────────────────────────────────────────
+      - name: Create draft release with installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "v${{ steps.meta.outputs.version }}-win-test"
           $title = "Windows Test Build v${{ steps.meta.outputs.version }}"
+          $exePath = "${{ steps.meta.outputs.exe_path }}"
 
-          # Delete existing release if any (to update)
-          gh release delete $tag --yes 2>$null
+          # Delete existing release if any (ignore all errors)
+          try { gh release delete $tag --yes --cleanup-tag 2>&1 | Out-Null } catch { }
+          $global:LASTEXITCODE = 0
 
-          # Create draft release and upload
-          gh release create $tag `
-            "${{ steps.meta.outputs.exe_path }}" `
-            --draft `
-            --title "$title" `
-            --notes "Windows test build from ``feat/windows-support`` branch.`n`nCommit: ${{ github.sha }}`nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Build notes without here-string to avoid indentation issues
+          $notes = "Windows test build from feat/windows-support branch."
+          $notes += "`n`nCommit: ${{ github.sha }}"
+          $notes += "`nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          Write-Host "Release created: $tag"
-          Write-Host "Download: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$tag"
+          # Create draft release and upload installer
+          $releaseUrl = gh release create $tag $exePath --draft --title $title --notes $notes
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to create release (exit code: $LASTEXITCODE)"
+            exit 1
+          }
+
+          Write-Host "Release created successfully"
+          Write-Host "Download URL: $releaseUrl"
         shell: pwsh
 
+      # ── Fallback ─────────────────────────────────────────────────
       - name: Upload unpacked app (for debugging)
         if: failure()
         uses: actions/upload-artifact@v4
