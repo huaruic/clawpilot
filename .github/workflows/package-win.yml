@@ -114,13 +114,38 @@ jobs:
           Write-Host "Smoke test passed"
         shell: pwsh
 
-      # ── Upload ───────────────────────────────────────────────────
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: catclaw-win-installer
-          path: dist/*Setup*.exe
-          retention-days: 7
+      # ── Release ─────────────────────────────────────────────────
+      - name: Get version and installer path
+        id: meta
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $exe = Get-ChildItem -Path dist -Filter "*Setup*.exe" | Select-Object -First 1
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "exe_path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          echo "exe_name=$($exe.Name)" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version, Installer: $($exe.Name)"
+        shell: pwsh
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v${{ steps.meta.outputs.version }}-win-test"
+          $title = "Windows Test Build v${{ steps.meta.outputs.version }}"
+
+          # Delete existing release if any (to update)
+          gh release delete $tag --yes 2>$null
+
+          # Create draft release and upload
+          gh release create $tag `
+            "${{ steps.meta.outputs.exe_path }}" `
+            --draft `
+            --title "$title" `
+            --notes "Windows test build from ``feat/windows-support`` branch.`n`nCommit: ${{ github.sha }}`nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          Write-Host "Release created: $tag"
+          Write-Host "Download: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$tag"
+        shell: pwsh
 
       - name: Upload unpacked app (for debugging)
         if: failure()
