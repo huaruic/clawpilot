@@ -218,6 +218,8 @@ export class OpenClawProcessManager {
       OPENCLAW_STATE_DIR: getOpenClawStateDir(),
       OPENCLAW_NO_RESPAWN: '1',
       OPENCLAW_NODE_OPTIONS_READY: '1',
+      OPENCLAW_DISABLE_BONJOUR: '1',
+      OPENCLAW_SKIP_GMAIL_WATCHER: '1',
       NO_COLOR: '1',
       FORCE_COLOR: undefined,
     }
