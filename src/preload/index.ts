@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld('catclaw', {
       ipcRenderer.invoke('app:setWorkspaceRoot', { workspaceRoot }),
     resetWorkspaceRoot: (): Promise<RuntimeSnapshot> =>
       ipcRenderer.invoke('app:resetWorkspaceRoot'),
+    getSearchConfig: (): Promise<unknown> => ipcRenderer.invoke('app:getSearchConfig'),
+    saveSearchConfig: (params: { provider: string; apiKey: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('app:saveSearchConfig', params),
     openDirectory: (path: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('app:openDirectory', { path }),
     onStatusChange: (cb: (snap: RuntimeSnapshot) => void): (() => void) => {
@@ -197,6 +200,9 @@ contextBridge.exposeInMainWorld('catclaw', {
       ipcRenderer.invoke('skills:setEnabled', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
+    fetchRegistry: (): Promise<unknown> => ipcRenderer.invoke('skills:fetchRegistry'),
+    install: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('skills:install', params),
   },
 
   // ── Dashboard (Usage Analytics) ─────────────────────────────────────

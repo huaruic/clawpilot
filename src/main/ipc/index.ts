@@ -28,7 +28,7 @@ export function registerAllIpc(deps: Deps): void {
   registerProviderIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
   registerChannelsIpc({ processManager: deps.processManager, state: deps.state, refreshSetup: deps.refreshSetup })
   registerRoutingIpc({ processManager: deps.processManager, state: deps.state })
-  registerSkillsIpc()
+  registerSkillsIpc({ processManager: deps.processManager, state: deps.state })
 
   registerDashboardIpc({ getWsClient: deps.getWsClient, getMainWindow: deps.getMainWindow })
 

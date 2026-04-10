@@ -8,3 +8,7 @@ export const SetSkillEnabledSchema = z.object({
 export const DeleteSkillSchema = z.object({
   skillKey: z.string().min(1),
 })
+
+export const InstallSkillSchema = z.object({
+  skillKey: z.string().min(1),
+})

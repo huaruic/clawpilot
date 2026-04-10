@@ -1,78 +1,454 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import type { RegistrySkill, RegistryResult, SkillInfo, SkillsListResult } from '../api/ipc'
 import {
-  Search, FolderOpen, ExternalLink, Globe, Monitor, Mail,
-  FileText, Code2, BarChart3, Music, BookOpen, Image,
-  MessageSquare, Terminal, Database, Zap, Bot, Wrench,
+  Database,
+  PenTool,
+  Lightbulb,
+  BarChart3,
+  Palette,
+  Zap,
+  Briefcase,
+  Package,
+  type LucideIcon,
 } from 'lucide-react'
-import type { SkillInfo, SkillsListResult } from '../api/ipc'
-import { useI18n } from '../i18n/I18nProvider'
-import { Switch } from '../components/ui/switch'
-import { toast } from 'sonner'
+import * as LucideIcons from 'lucide-react'
 
-type Tab = 'all' | 'builtin' | 'installed'
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
+  '\u6570\u636e\u91c7\u96c6': Database,
+  '\u5185\u5bb9\u521b\u4f5c': PenTool,
+  '\u9009\u9898\u7b56\u5212': Lightbulb,
+  '\u6570\u636e\u5206\u6790': BarChart3,
+  '\u8bbe\u8ba1\u5236\u4f5c': Palette,
+  '\u6548\u7387\u5de5\u5177': Zap,
+  '\u529e\u516c\u96c6\u6210': Briefcase,
+}
+
+function getSkillIcon(skill: RegistrySkill): LucideIcon {
+  if (skill.icon) {
+    const pascalName = skill.icon
+      .split('-')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join('')
+    const icon = (LucideIcons as Record<string, unknown>)[pascalName] as LucideIcon | undefined
+    if (icon) return icon
+  }
+  return CATEGORY_ICON_MAP[skill.category] ?? Package
+}
 
 function getSkillsApi(): Window['catclaw']['skills'] {
   const api = window.catclaw?.skills
-  if (!api) throw new Error('Skills API is not available.')
+  if (!api) {
+    throw new Error('Skills API is not available. Restart CatClaw to load the latest preload bridge.')
+  }
   return api
 }
 
-function isBuiltin(skill: SkillInfo): boolean {
-  return skill.source === 'openclaw-bundled'
-}
+export function SkillsPage(): React.ReactElement {
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [busySkillKey, setBusySkillKey] = useState<string | null>(null)
+  const [installingKey, setInstallingKey] = useState<string | null>(null)
+  const [skillsResult, setSkillsResult] = useState<SkillsListResult | null>(null)
+  const [registryResult, setRegistryResult] = useState<RegistryResult | null>(null)
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-function isInstalled(skill: SkillInfo): boolean {
-  return skill.source === 'openclaw-managed' || skill.source === 'openclaw-extra'
-}
+  useEffect(() => {
+    void loadAll(true)
+  }, [])
 
-/* Map well-known skill names/keys to lucide icons */
-const SKILL_ICON_MAP: Record<string, React.ReactNode> = {
-  'web-search': <Search className="h-4.5 w-4.5" />,
-  'websearch': <Search className="h-4.5 w-4.5" />,
-  'browser': <Globe className="h-4.5 w-4.5" />,
-  'playwright': <Globe className="h-4.5 w-4.5" />,
-  'email': <Mail className="h-4.5 w-4.5" />,
-  'pdf': <FileText className="h-4.5 w-4.5" />,
-  'code-review': <Code2 className="h-4.5 w-4.5" />,
-  'data-analysis': <BarChart3 className="h-4.5 w-4.5" />,
-  'spotify': <Music className="h-4.5 w-4.5" />,
-  'notion': <BookOpen className="h-4.5 w-4.5" />,
-  'image': <Image className="h-4.5 w-4.5" />,
-  'chat': <MessageSquare className="h-4.5 w-4.5" />,
-  'terminal': <Terminal className="h-4.5 w-4.5" />,
-  'database': <Database className="h-4.5 w-4.5" />,
-  'camsnap': <Monitor className="h-4.5 w-4.5" />,
-  'blogwatcher': <BookOpen className="h-4.5 w-4.5" />,
-  'blucli': <Music className="h-4.5 w-4.5" />,
-  'bluebubbles': <MessageSquare className="h-4.5 w-4.5" />,
-  'apple-notes': <FileText className="h-4.5 w-4.5" />,
-  'apple-reminders': <Zap className="h-4.5 w-4.5" />,
-  'bear-notes': <FileText className="h-4.5 w-4.5" />,
-  '1password': <Wrench className="h-4.5 w-4.5" />,
-}
+  const installedSkills = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    const list = skillsResult?.skills ?? []
+    if (!query) return list
+    return list.filter((skill) => {
+      const haystack = [
+        skill.skillKey,
+        skill.name,
+        skill.description ?? '',
+        skill.source,
+      ].join(' ').toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [search, skillsResult?.skills])
 
-function getSkillIcon(skill: SkillInfo): React.ReactNode {
-  const key = skill.skillKey.toLowerCase()
-  for (const [match, icon] of Object.entries(SKILL_ICON_MAP)) {
-    if (key.includes(match)) return icon
+  const installedKeySet = useMemo(
+    () => new Set((skillsResult?.skills ?? []).map((s) => s.skillKey)),
+    [skillsResult?.skills],
+  )
+
+  const categories = useMemo(() => {
+    const cats = new Set((registryResult?.skills ?? []).map((s) => s.category))
+    return Array.from(cats).sort()
+  }, [registryResult?.skills])
+
+  const filteredRegistrySkills = useMemo(() => {
+    const skills = registryResult?.skills ?? []
+    if (!categoryFilter) return skills
+    return skills.filter((s) => s.category === categoryFilter)
+  }, [registryResult?.skills, categoryFilter])
+
+  async function loadAll(initial = false): Promise<void> {
+    if (initial) setLoading(true)
+    else setRefreshing(true)
+    setError(null)
+
+    try {
+      const [skills, registry] = await Promise.all([
+        getSkillsApi().list(),
+        getSkillsApi().fetchRegistry(),
+      ])
+      setSkillsResult(skills)
+      setRegistryResult(registry)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
-  if (skill.emoji) return <span className="text-base">{skill.emoji}</span>
-  return <Bot className="h-4.5 w-4.5" />
+
+  async function handleToggle(skill: SkillInfo): Promise<void> {
+    setBusySkillKey(skill.skillKey)
+    setError(null)
+    setMessage(null)
+    try {
+      await getSkillsApi().setEnabled({ skillKey: skill.skillKey, enabled: !skill.enabled })
+      setMessage(skill.enabled ? `${skill.name} disabled.` : `${skill.name} enabled.`)
+      await loadAll()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusySkillKey(null)
+    }
+  }
+
+  async function handleDelete(skill: SkillInfo): Promise<void> {
+    const confirmed = window.confirm(`Delete ${skill.name}? This removes the local skill folder from OpenClaw.`)
+    if (!confirmed) return
+
+    setBusySkillKey(skill.skillKey)
+    setError(null)
+    setMessage(null)
+    try {
+      await getSkillsApi().delete({ skillKey: skill.skillKey })
+      setMessage(`${skill.name} deleted from local skills.`)
+      await loadAll()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusySkillKey(null)
+    }
+  }
+
+  async function handleInstall(skill: RegistrySkill): Promise<void> {
+    setInstallingKey(skill.skillKey)
+    setError(null)
+    setMessage(null)
+    try {
+      await getSkillsApi().install({ skillKey: skill.skillKey })
+      setMessage(`${skill.name} installed and enabled.`)
+      await loadAll()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setInstallingKey(null)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full p-6 gap-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Skills</h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            Browse curated skills, install with one click, and manage your local skills.
+          </p>
+        </div>
+        <button
+          onClick={() => void loadAll()}
+          disabled={refreshing || loading}
+          className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      {message && (
+        <div className="rounded-lg border border-green-900 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-4 gap-4">
+        <SummaryCard label="Total" value={String(skillsResult?.summary.total ?? '0')} />
+        <SummaryCard label="Enabled" value={String(skillsResult?.summary.enabled ?? '0')} />
+        <SummaryCard label="Built-in" value={String(skillsResult?.summary.builtIn ?? '0')} />
+        <SummaryCard label="Local" value={String(skillsResult?.summary.local ?? '0')} />
+      </div>
+
+      {/* Featured / Store section */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+        <div>
+          <h2 className="text-lg font-medium text-zinc-100">Store</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Curated skills for content creators. Install with one click.
+          </p>
+        </div>
+
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <CategoryChip
+              label="All"
+              active={categoryFilter === null}
+              onClick={() => setCategoryFilter(null)}
+            />
+            {categories.map((cat) => (
+              <CategoryChip
+                key={cat}
+                label={cat}
+                active={categoryFilter === cat}
+                onClick={() => setCategoryFilter(cat)}
+              />
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+            Loading skill store...
+          </div>
+        ) : registryResult?.error && (registryResult.skills.length === 0) ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+            Unable to load skill store. Please check your network connection.
+          </div>
+        ) : filteredRegistrySkills.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+            No skills available in this category.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {filteredRegistrySkills.map((skill) => (
+              <RegistrySkillCard
+                key={skill.skillKey}
+                skill={skill}
+                installed={installedKeySet.has(skill.skillKey)}
+                installing={installingKey === skill.skillKey}
+                onInstall={() => void handleInstall(skill)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Installed section */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-medium text-zinc-100">Installed</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              This list is read directly from local OpenClaw skill folders and configuration.
+            </p>
+          </div>
+          <label className="block w-full max-w-sm">
+            <span className="sr-only">Search skills</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search installed skills"
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-500"
+            />
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+            Loading skills from OpenClaw...
+          </div>
+        ) : installedSkills.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-sm text-zinc-400">
+            No skills matched the current search.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {installedSkills.map((skill) => (
+              <SkillRow
+                key={skill.skillKey}
+                skill={skill}
+                busy={busySkillKey === skill.skillKey}
+                onToggle={() => void handleToggle(skill)}
+                onDelete={() => void handleDelete(skill)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
 }
 
-interface RecommendedSkill {
-  name: string
-  desc: string
-  icon: React.ReactNode
-  rating: number
-  downloads: string
+function SummaryCard({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <div className="text-xs uppercase tracking-[0.12em] text-zinc-500">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+    </div>
+  )
 }
 
-const RECOMMENDED_SKILLS: RecommendedSkill[] = [
-  { name: 'Spotify Control', desc: 'Spotify 播放控制', icon: <Music className="h-5 w-5" />, rating: 4.6, downloads: '8K' },
-  { name: 'Notion Sync', desc: 'Notion 数据同步', icon: <BookOpen className="h-5 w-5" />, rating: 4.5, downloads: '6K' },
-  { name: 'Image Gen', desc: 'AI 图像生成', icon: <Image className="h-5 w-5" />, rating: 4.4, downloads: '5K' },
-]
+function CategoryChip(props: {
+  label: string
+  active: boolean
+  onClick: () => void
+}): React.ReactElement {
+  const { label, active, onClick } = props
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+        active
+          ? 'bg-violet-600 text-white'
+          : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function RegistrySkillCard(props: {
+  skill: RegistrySkill
+  installed: boolean
+  installing: boolean
+  onInstall: () => void
+}): React.ReactElement {
+  const { skill, installed, installing, onInstall } = props
+  const IconComponent = getSkillIcon(skill)
+
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex-shrink-0 rounded-xl bg-zinc-800 p-2">
+            <IconComponent className="h-5 w-5 text-violet-400" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-medium text-zinc-100 truncate">{skill.name}</div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Badge>{skill.category}</Badge>
+              <Badge>{skill.risk} risk</Badge>
+            </div>
+          </div>
+        </div>
+        <div className="flex-shrink-0">
+          {installed ? (
+            <span className="inline-flex items-center gap-1 rounded-xl bg-green-950/50 px-3 py-2 text-sm text-green-300">
+              Installed
+            </span>
+          ) : (
+            <button
+              onClick={onInstall}
+              disabled={installing}
+              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {installing ? 'Installing...' : 'Install'}
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="text-sm text-zinc-400">{skill.description}</p>
+      {skill.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {skill.tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-zinc-900 px-2 py-0.5 text-xs text-zinc-500">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SkillRow(props: {
+  skill: SkillInfo
+  busy: boolean
+  onToggle: () => void
+  onDelete: () => void
+}): React.ReactElement {
+  const { skill, busy, onToggle, onDelete } = props
+
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-base font-medium text-zinc-100">
+              {skill.name}
+            </span>
+            <Badge>{formatSource(skill.source)}</Badge>
+            <StatusBadge skill={skill} />
+          </div>
+          <p className="text-sm text-zinc-400">
+            {skill.description || 'No description provided by this skill.'}
+          </p>
+          <div className="text-sm text-zinc-500">Key: {skill.skillKey}</div>
+          {skill.homepage && (
+            <a
+              href={skill.homepage}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex text-sm text-violet-300 underline underline-offset-2"
+            >
+              Skill homepage
+            </a>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={onToggle}
+            disabled={busy}
+            className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {busy ? 'Working...' : skill.enabled ? 'Disable' : 'Enable'}
+          </button>
+          {skill.canDelete && (
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="rounded-xl border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300 transition-colors hover:border-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Badge({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300">
+      {children}
+    </span>
+  )
+}
+
+function StatusBadge({ skill }: { skill: SkillInfo }): React.ReactElement {
+  const label = skill.enabled ? 'Enabled' : 'Disabled'
+  const className = skill.enabled ? 'bg-green-950/50 text-green-300' : 'bg-zinc-800 text-zinc-300'
+
+  return <span className={`rounded-full px-2.5 py-1 text-xs ${className}`}>{label}</span>
+}
 
 function formatSource(source: string): string {
   if (source === 'openclaw-bundled') return 'Built-in'
@@ -82,207 +458,4 @@ function formatSource(source: string): string {
   if (source === 'agents-skills-project') return 'Project Agent'
   if (source === 'openclaw-extra') return 'Extra'
   return source
-}
-
-export function SkillsPage(): React.ReactElement {
-  const { t } = useI18n()
-  const [loading, setLoading] = useState(true)
-  const [busySkillKey, setBusySkillKey] = useState<string | null>(null)
-  const [skillsResult, setSkillsResult] = useState<SkillsListResult | null>(null)
-  const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<Tab>('all')
-
-  useEffect(() => { void loadSkills(true) }, [])
-
-  async function loadSkills(initial = false): Promise<void> {
-    if (initial) setLoading(true)
-    try {
-      setSkillsResult(await getSkillsApi().list())
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleToggle(skill: SkillInfo): Promise<void> {
-    setBusySkillKey(skill.skillKey)
-    try {
-      await getSkillsApi().setEnabled({ skillKey: skill.skillKey, enabled: !skill.enabled })
-      toast.success(skill.enabled ? `${skill.name} disabled` : `${skill.name} enabled`)
-      await loadSkills()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusySkillKey(null)
-    }
-  }
-
-  async function handleDelete(skill: SkillInfo): Promise<void> {
-    if (!window.confirm(`Delete ${skill.name}?`)) return
-    setBusySkillKey(skill.skillKey)
-    try {
-      await getSkillsApi().delete({ skillKey: skill.skillKey })
-      toast.success(`${skill.name} deleted`)
-      await loadSkills()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusySkillKey(null)
-    }
-  }
-
-  const allSkills = skillsResult?.skills ?? []
-  const filteredList = useMemo(() => {
-    let list = allSkills
-    if (tab === 'builtin') list = list.filter(isBuiltin)
-    else if (tab === 'installed') list = list.filter(isInstalled)
-    if (search) {
-      const q = search.toLowerCase()
-      list = list.filter((s) => [s.name, s.skillKey, s.description ?? ''].join(' ').toLowerCase().includes(q))
-    }
-    return list
-  }, [allSkills, tab, search])
-
-  const builtinCount = allSkills.filter(isBuiltin).length
-  const installedCount = allSkills.filter(isInstalled).length
-
-  const tabs: { key: Tab | 'marketplace'; label: string; count?: number; external?: boolean }[] = [
-    { key: 'all', label: t('app.skills.tabAll'), count: allSkills.length },
-    { key: 'builtin', label: t('app.skills.tabBuiltin'), count: builtinCount },
-    { key: 'installed', label: t('app.skills.tabInstalled'), count: installedCount },
-    { key: 'marketplace', label: t('app.skills.tabMarketplace'), external: true },
-  ]
-
-  return (
-    <div className="cp-page max-w-4xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">{t('nav.skills')}</h1>
-        <button
-          onClick={() => void loadSkills()}
-          className="btn-active-scale flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
-        >
-          <FolderOpen className="h-3.5 w-3.5" /> {t('app.skills.openDir')}
-        </button>
-      </div>
-
-      {/* Search + tabs */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('app.skills.searchPh')}
-            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/50"
-          />
-        </div>
-        <div className="flex gap-1">
-          {tabs.map((tb) =>
-            tb.external ? (
-              <button
-                key={tb.key}
-                onClick={() => window.open('https://clawhub.ai/skills?sort=downloads', '_blank')}
-                className="btn-active-scale flex items-center gap-1 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-              >
-                {tb.label} <ExternalLink className="h-3 w-3" />
-              </button>
-            ) : (
-              <button
-                key={tb.key}
-                onClick={() => setTab(tb.key as Tab)}
-                className={`btn-active-scale ${`rounded-md px-3 py-1.5 text-xs transition-colors ${
-                  tab === tb.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
-                }`}`}
-              >
-                {tb.label} ({tb.count})
-              </button>
-            ),
-          )}
-        </div>
-      </div>
-
-      {/* Skill list */}
-      <div className="space-y-2">
-        {loading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">{t('app.skills.loading')}</div>
-        ) : filteredList.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">{t('app.skills.empty')}</div>
-        ) : (
-          filteredList.map((skill) => (
-            <div key={skill.skillKey} className="flex items-center justify-between rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/30">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  {getSkillIcon(skill)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">{skill.name}</span>
-                    {isBuiltin(skill) && (
-                      <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        {formatSource(skill.source)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{skill.description || skill.skillKey}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {skill.canDelete && (
-                  <button
-                    onClick={() => void handleDelete(skill)}
-                    disabled={busySkillKey === skill.skillKey}
-                    className="btn-active-scale text-[10px] text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
-                  >
-                    {t('app.skills.delete')}
-                  </button>
-                )}
-                <Switch
-                  checked={skill.enabled}
-                  disabled={busySkillKey === skill.skillKey}
-                  onCheckedChange={() => void handleToggle(skill)}
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Recommended skills */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">{t('app.skills.recommended')}</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {RECOMMENDED_SKILLS.map((rs) => (
-            <div key={rs.name} className="rounded-xl border border-border bg-card p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  {rs.icon}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{rs.name}</p>
-                  <p className="text-xs text-muted-foreground">{rs.desc}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground">
-                  ★ {rs.rating}  {rs.downloads} {t('app.skills.installs')}
-                </span>
-                <button className="btn-active-scale rounded-md bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90">
-                  {t('app.skills.install')}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Marketplace link */}
-      <button
-        onClick={() => window.open('https://clawhub.ai/skills?sort=downloads', '_blank')}
-        className="btn-active-scale flex items-center gap-1 text-xs text-primary hover:underline"
-      >
-        {t('app.skills.browseMore')} <ExternalLink className="h-3 w-3" />
-      </button>
-    </div>
-  )
 }
