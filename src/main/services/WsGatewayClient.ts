@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import { randomUUID } from 'node:crypto'
 import { mainLogger } from '../utils/logger'
+import { firstString, extractAgentErrorMessage } from '../utils/agentEvents'
 import { waitForGatewayToken } from './OpenClawConfigWriter'
 import { getOrCreateDeviceIdentity, buildDeviceParams } from './DeviceIdentity'
 
@@ -20,6 +21,9 @@ const CLIENT_MODE = 'cli'
 const ROLE = 'operator'
 const SCOPES = ['operator.read', 'operator.write', 'operator.admin']
 
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS = 5000
+
 export class WsGatewayClient {
   private ws: WebSocket | null = null
   private pending = new Map<string, Pending>()
@@ -33,6 +37,10 @@ export class WsGatewayClient {
   private port: number
   private _isConnected = false
 
+  private manualDisconnect = false
+  private reconnectTimer: NodeJS.Timeout | null = null
+  private reconnectAttempt = 0
+
   constructor(port: number) {
     this.port = port
   }
@@ -41,32 +49,80 @@ export class WsGatewayClient {
     return this._isConnected
   }
 
-  connect(): Promise<void> {
+  async connect(): Promise<void> {
+    this.manualDisconnect = false
+    await this.openAndHandshake()
+  }
+
+  private openAndHandshake(): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = `ws://127.0.0.1:${this.port}`
       mainLogger.info(`[WsClient] Connecting to ${url}`)
 
-      this.ws = new WebSocket(url)
+      const ws = new WebSocket(url)
+      this.ws = ws
 
-      this.ws.on('open', () => {
-        this.sendHandshake().then(resolve).catch(reject)
+      ws.on('open', () => {
+        this.sendHandshake().then(() => {
+          this.reconnectAttempt = 0
+          resolve()
+        }).catch(reject)
       })
 
-      this.ws.on('message', (data) => {
+      ws.on('message', (data) => {
         this.handleMessage(data.toString())
       })
 
-      this.ws.on('error', (err) => {
+      ws.on('error', (err) => {
         mainLogger.error('[WsClient] error:', err.message)
         if (!this._isConnected) reject(err)
       })
 
-      this.ws.on('close', () => {
+      ws.on('close', () => {
         mainLogger.info('[WsClient] closed')
+        const wasConnected = this._isConnected
         this._isConnected = false
         this.rejectAllPending(new Error('WebSocket closed'))
+        if (this.ws === ws) this.ws = null
+        // Only auto-reconnect if we lost an established connection.
+        // A failed initial/reconnect handshake surfaces the error elsewhere.
+        if (wasConnected && !this.manualDisconnect) {
+          this.scheduleReconnect()
+        }
       })
     })
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer || this.manualDisconnect) return
+    const delay = Math.min(
+      RECONNECT_BASE_MS * Math.pow(1.5, this.reconnectAttempt),
+      RECONNECT_MAX_MS,
+    )
+    this.reconnectAttempt += 1
+    mainLogger.info(
+      `[WsClient] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt})`,
+    )
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      void this.reconnect()
+    }, delay)
+  }
+
+  private async reconnect(): Promise<void> {
+    if (this.manualDisconnect) return
+    mainLogger.info(`[WsClient] Reconnecting (attempt ${this.reconnectAttempt})...`)
+    try {
+      await this.openAndHandshake()
+      mainLogger.info('[WsClient] Reconnected')
+    } catch (err) {
+      mainLogger.warn(
+        `[WsClient] Reconnect failed: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      if (!this.manualDisconnect) {
+        this.scheduleReconnect()
+      }
+    }
   }
 
   private sendHandshake(): Promise<void> {
@@ -178,7 +234,12 @@ export class WsGatewayClient {
   }
 
   disconnect(): void {
+    this.manualDisconnect = true
     this._isConnected = false
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     this.ws?.close()
     this.ws = null
   }
@@ -271,7 +332,8 @@ export class WsGatewayClient {
         const durationMs = current.startedAt ? Math.max(0, Date.now() - current.startedAt) : undefined
         const normalizedText = current.text.replace(/\s+/g, ' ').trim()
         const preview = normalizedText ? JSON.stringify(normalizedText.slice(0, 120)) : '""'
-        const reason = typeof data.reason === 'string' && data.reason.trim() ? ` reason=${JSON.stringify(data.reason.trim())}` : ''
+        const errorText = extractAgentErrorMessage(data)
+        const reason = errorText ? ` reason=${JSON.stringify(errorText)}` : ''
         const duration = durationMs !== undefined ? ` durationMs=${durationMs}` : ''
         const seqText = current.lastSeq !== undefined ? ` lastSeq=${current.lastSeq}` : ''
         mainLogger.info(
@@ -292,7 +354,7 @@ export class WsGatewayClient {
     }
 
     if (stream === 'error') {
-      const reason = firstString(data.reason, data.message, 'Agent failed')
+      const reason = extractAgentErrorMessage(data) || 'Agent failed'
       const durationMs = current.startedAt ? Math.max(0, Date.now() - current.startedAt) : undefined
       const duration = durationMs !== undefined ? ` durationMs=${durationMs}` : ''
       const seqText = current.lastSeq !== undefined ? ` lastSeq=${current.lastSeq}` : ''
@@ -303,13 +365,4 @@ export class WsGatewayClient {
       return
     }
   }
-}
-
-function firstString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value
-    }
-  }
-  return ''
 }
