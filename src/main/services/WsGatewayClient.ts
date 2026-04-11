@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import { randomUUID } from 'node:crypto'
 import { mainLogger } from '../utils/logger'
+import { firstString, extractAgentErrorMessage } from '../utils/agentEvents'
 import { waitForGatewayToken } from './OpenClawConfigWriter'
 import { getOrCreateDeviceIdentity, buildDeviceParams } from './DeviceIdentity'
 
@@ -331,7 +332,8 @@ export class WsGatewayClient {
         const durationMs = current.startedAt ? Math.max(0, Date.now() - current.startedAt) : undefined
         const normalizedText = current.text.replace(/\s+/g, ' ').trim()
         const preview = normalizedText ? JSON.stringify(normalizedText.slice(0, 120)) : '""'
-        const reason = typeof data.reason === 'string' && data.reason.trim() ? ` reason=${JSON.stringify(data.reason.trim())}` : ''
+        const errorText = extractAgentErrorMessage(data)
+        const reason = errorText ? ` reason=${JSON.stringify(errorText)}` : ''
         const duration = durationMs !== undefined ? ` durationMs=${durationMs}` : ''
         const seqText = current.lastSeq !== undefined ? ` lastSeq=${current.lastSeq}` : ''
         mainLogger.info(
@@ -352,7 +354,7 @@ export class WsGatewayClient {
     }
 
     if (stream === 'error') {
-      const reason = firstString(data.reason, data.message, 'Agent failed')
+      const reason = extractAgentErrorMessage(data) || 'Agent failed'
       const durationMs = current.startedAt ? Math.max(0, Date.now() - current.startedAt) : undefined
       const duration = durationMs !== undefined ? ` durationMs=${durationMs}` : ''
       const seqText = current.lastSeq !== undefined ? ` lastSeq=${current.lastSeq}` : ''
@@ -363,13 +365,4 @@ export class WsGatewayClient {
       return
     }
   }
-}
-
-function firstString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value
-    }
-  }
-  return ''
 }

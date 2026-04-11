@@ -5,6 +5,7 @@ import { basename, extname, join } from 'node:path'
 import type { WsGatewayClient } from '../services/WsGatewayClient'
 import { ChatSendSchema, ChatHistorySchema, ChatAbortSchema, SessionDeleteSchema, SessionResetSchema } from './schemas/chat.schema'
 import { mainLogger } from '../utils/logger'
+import { firstString, extractAgentErrorMessage } from '../utils/agentEvents'
 import { getOpenClawStateDir } from '../services/RuntimeLocator'
 
 interface Deps {
@@ -326,7 +327,7 @@ function normalizeAgentPayload(payload: unknown): NormalizedPayload | null {
     case 'error': {
       return {
         runId, sessionKey, seq, state: 'error',
-        errorMessage: firstString(data.reason, data.message, 'Agent failed before reply'),
+        errorMessage: extractAgentErrorMessage(data) || 'Agent failed before reply',
       }
     }
 
@@ -338,7 +339,7 @@ function normalizeAgentPayload(payload: unknown): NormalizedPayload | null {
       if (phase === 'error') {
         return {
           runId, sessionKey, seq, state: 'error',
-          errorMessage: firstString(data.reason, 'Agent failed before reply'),
+          errorMessage: extractAgentErrorMessage(data) || 'Agent failed before reply',
         }
       }
       return null
@@ -350,13 +351,6 @@ function normalizeAgentPayload(payload: unknown): NormalizedPayload | null {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
-
-function firstString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return ''
-}
 
 const MIME_MAP: Record<string, string> = {
   '.png': 'image/png',
