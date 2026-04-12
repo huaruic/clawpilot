@@ -8,11 +8,13 @@ export type AppTheme = 'system' | 'light' | 'dark'
 export interface AppSettings {
   language: AppLanguage
   theme: AppTheme
+  onboardedStarterPack: boolean
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'system',
   theme: 'system',
+  onboardedStarterPack: false,
 }
 
 function getSettingsPath(): string {
@@ -22,6 +24,7 @@ function getSettingsPath(): string {
 function normalizeSettings(raw: unknown): AppSettings {
   const language = (raw as { language?: unknown } | null)?.language
   const theme = (raw as { theme?: unknown } | null)?.theme
+  const onboardedStarterPack = (raw as { onboardedStarterPack?: unknown } | null)?.onboardedStarterPack
   return {
     language: language === 'zh-CN' || language === 'en' || language === 'system'
       ? language
@@ -29,6 +32,9 @@ function normalizeSettings(raw: unknown): AppSettings {
     theme: theme === 'light' || theme === 'dark' || theme === 'system'
       ? theme
       : DEFAULT_SETTINGS.theme,
+    onboardedStarterPack: typeof onboardedStarterPack === 'boolean'
+      ? onboardedStarterPack
+      : DEFAULT_SETTINGS.onboardedStarterPack,
   }
 }
 

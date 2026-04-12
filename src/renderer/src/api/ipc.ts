@@ -7,6 +7,7 @@ export type AppTheme = 'system' | 'light' | 'dark'
 export interface AppSettings {
   language: AppLanguage
   theme: AppTheme
+  onboardedStarterPack: boolean
 }
 
 export interface OpenClawSetup {
@@ -136,6 +137,24 @@ export interface SkillsListResult {
     local: number
   }
   skills: SkillInfo[]
+}
+
+export interface CuratedSkillEntry {
+  skillKey: string
+  name: string
+  icon: string
+  category: string
+  description: string
+  tags: string[]
+  risk: 'Low' | 'Medium' | 'High'
+  files: string[]
+  downloadUrl?: string
+}
+
+export interface CuratedRegistry {
+  version: number
+  updatedAt: string
+  skills: CuratedSkillEntry[]
 }
 
 export interface CatClawAPI {
@@ -277,6 +296,7 @@ export interface CatClawAPI {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
+    curatedRegistry: () => Promise<CuratedRegistry | null>
   }
   dashboard: {
     getUsage: (params?: { since?: number }) => Promise<import('../types/dashboard').UsageStoreData>

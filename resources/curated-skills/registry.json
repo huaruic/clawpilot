@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-10T00:00:00Z",
+  "skills": [
+    {
+      "skillKey": "web-scraper",
+      "name": "Web Scraper",
+      "icon": "globe",
+      "category": "\u6570\u636e\u91c7\u96c6",
+      "description": "\u4ece\u7f51\u9875\u63d0\u53d6\u7ed3\u6784\u5316\u6570\u636e\uff0c\u6574\u7406\u6210\u8868\u683c\u6216 CSV",
+      "tags": ["\u6293\u53d6", "\u6570\u636e", "URL"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/web-scraper/"
+    },
+    {
+      "skillKey": "search-researcher",
+      "name": "Search Researcher",
+      "icon": "search",
+      "category": "\u6570\u636e\u91c7\u96c6",
+      "description": "\u591a\u89d2\u5ea6\u7f51\u7edc\u8c03\u7814\uff0c\u7efc\u5408\u591a\u6e90\u4fe1\u606f\u751f\u6210\u7814\u7a76\u62a5\u544a",
+      "tags": ["\u8c03\u7814", "\u641c\u7d22", "\u7ade\u54c1"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/search-researcher/"
+    },
+    {
+      "skillKey": "xiaohongshu-writer",
+      "name": "Xiaohongshu Writer",
+      "icon": "pen-tool",
+      "category": "\u5185\u5bb9\u521b\u4f5c",
+      "description": "\u5c0f\u7ea2\u4e66\u98ce\u683c\u6587\u6848\u751f\u6210\uff0c\u5305\u542b\u7206\u6b3e\u6807\u9898\u3001\u6b63\u6587\u7ed3\u6784\u3001\u6807\u7b7e\u7b56\u7565",
+      "tags": ["\u5c0f\u7ea2\u4e66", "\u6587\u6848", "\u79cd\u8349"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/xiaohongshu-writer/"
+    },
+    {
+      "skillKey": "wechat-article",
+      "name": "WeChat Article",
+      "icon": "file-text",
+      "category": "\u5185\u5bb9\u521b\u4f5c",
+      "description": "\u5fae\u4fe1\u516c\u4f17\u53f7\u957f\u6587\u5199\u4f5c\uff0c\u4f18\u5316\u6807\u9898\u3001\u7ed3\u6784\u548c\u9605\u8bfb\u4f53\u9a8c",
+      "tags": ["\u5fae\u4fe1", "\u516c\u4f17\u53f7", "\u957f\u6587"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/wechat-article/"
+    },
+    {
+      "skillKey": "content-rewriter",
+      "name": "Content Rewriter",
+      "icon": "repeat",
+      "category": "\u5185\u5bb9\u521b\u4f5c",
+      "description": "\u5185\u5bb9\u6539\u5199\uff0c\u4fdd\u7559\u6838\u5fc3\u89c2\u70b9\uff0c\u66f4\u6362\u8868\u8fbe\u65b9\u5f0f\u548c\u8bed\u6c14",
+      "tags": ["\u6539\u5199", "\u6da6\u8272", "\u98ce\u683c"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/content-rewriter/"
+    },
+    {
+      "skillKey": "topic-generator",
+      "name": "Topic Generator",
+      "icon": "lightbulb",
+      "category": "\u9009\u9898\u7b56\u5212",
+      "description": "\u751f\u6210\u5185\u5bb9\u9009\u9898\u521b\u610f\uff0c\u591a\u89d2\u5ea6\u5206\u6790\u914d\u5185\u5bb9\u65e5\u5386\u5efa\u8bae",
+      "tags": ["\u9009\u9898", "\u7b56\u5212", "\u521b\u610f"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/topic-generator/"
+    },
+    {
+      "skillKey": "competitor-analyzer",
+      "name": "Competitor Analyzer",
+      "icon": "target",
+      "category": "\u9009\u9898\u7b56\u5212",
+      "description": "\u62c6\u89e3\u7ade\u54c1\u5185\u5bb9\u7b56\u7565\uff0c\u627e\u51fa\u7206\u6b3e\u89c4\u5f8b\u548c\u5185\u5bb9\u7a7a\u767d",
+      "tags": ["\u7ade\u54c1", "\u5206\u6790", "\u7b56\u7565"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/competitor-analyzer/"
+    },
+    {
+      "skillKey": "data-analyzer",
+      "name": "Data Analyzer",
+      "icon": "bar-chart-3",
+      "category": "\u6570\u636e\u5206\u6790",
+      "description": "\u5206\u6790\u7528\u6237\u63d0\u4f9b\u7684\u6570\u636e\uff0c\u63d0\u53d6\u6d1e\u5bdf\u3001\u8d8b\u52bf\u548c\u53ef\u89c6\u5316\u5efa\u8bae",
+      "tags": ["\u6570\u636e", "\u5206\u6790", "\u8d8b\u52bf"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/data-analyzer/"
+    },
+    {
+      "skillKey": "csv-processor",
+      "name": "CSV Processor",
+      "icon": "table",
+      "category": "\u6570\u636e\u5206\u6790",
+      "description": "CSV/Excel \u6570\u636e\u6e05\u6d17\u3001\u8fc7\u6ee4\u3001\u8f6c\u6362\u548c\u5408\u5e76",
+      "tags": ["CSV", "Excel", "\u6570\u636e\u6e05\u6d17"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/csv-processor/"
+    },
+    {
+      "skillKey": "poster-designer",
+      "name": "Poster Designer",
+      "icon": "palette",
+      "category": "\u8bbe\u8ba1\u5236\u4f5c",
+      "description": "\u6d77\u62a5\u6587\u6848 + \u8bbe\u8ba1\u89c4\u683c\u751f\u6210\uff0c\u542b\u914d\u8272\u3001\u6392\u7248\u3001\u5c3a\u5bf8\u5efa\u8bae",
+      "tags": ["\u6d77\u62a5", "\u8bbe\u8ba1", "\u89c6\u89c9"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/poster-designer/"
+    },
+    {
+      "skillKey": "image-prompt",
+      "name": "Image Prompt",
+      "icon": "image",
+      "category": "\u8bbe\u8ba1\u5236\u4f5c",
+      "description": "AI \u7ed8\u56fe Prompt \u751f\u6210\uff0c\u652f\u6301 Midjourney/SD/DALL-E",
+      "tags": ["AI\u7ed8\u56fe", "Midjourney", "Prompt"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/image-prompt/"
+    },
+    {
+      "skillKey": "summarizer",
+      "name": "Summarizer",
+      "icon": "file-minus",
+      "category": "\u6548\u7387\u5de5\u5177",
+      "description": "\u957f\u6587/\u6587\u6863/\u4f1a\u8bae\u5185\u5bb9\u5feb\u901f\u6458\u8981\uff0c\u63d0\u53d6\u5173\u952e\u4fe1\u606f",
+      "tags": ["\u6458\u8981", "\u7b80\u5199", "\u63d0\u70bc"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/summarizer/"
+    },
+    {
+      "skillKey": "translator",
+      "name": "Translator",
+      "icon": "languages",
+      "category": "\u6548\u7387\u5de5\u5177",
+      "description": "\u591a\u8bed\u8a00\u7ffb\u8bd1\uff0c\u4fdd\u7559\u8bed\u5883\u3001\u8bed\u6c14\u548c\u6587\u5316\u8868\u8fbe",
+      "tags": ["\u7ffb\u8bd1", "\u4e2d\u82f1", "\u591a\u8bed\u8a00"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/translator/"
+    },
+    {
+      "skillKey": "meeting-notes",
+      "name": "Meeting Notes",
+      "icon": "clipboard-list",
+      "category": "\u6548\u7387\u5de5\u5177",
+      "description": "\u4f1a\u8bae\u7eaa\u8981\u6574\u7406\uff0c\u63d0\u53d6\u51b3\u8bae\u3001\u884c\u52a8\u9879\u548c\u8ba8\u8bba\u8981\u70b9",
+      "tags": ["\u4f1a\u8bae", "\u7eaa\u8981", "\u884c\u52a8\u9879"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/meeting-notes/"
+    },
+    {
+      "skillKey": "feishu-doc",
+      "name": "Feishu Doc",
+      "icon": "briefcase",
+      "category": "\u529e\u516c\u96c6\u6210",
+      "description": "\u98de\u4e66\u6587\u6863\u683c\u5f0f\u5185\u5bb9\u521b\u5efa\uff0c\u542b\u9879\u76ee\u7b80\u62a5\u3001\u5468\u62a5\u3001\u8bae\u7a0b\u6a21\u677f",
+      "tags": ["\u98de\u4e66", "\u6587\u6863", "\u6a21\u677f"],
+      "risk": "Low",
+      "files": ["SKILL.md"],
+      "downloadUrl": "https://raw.githubusercontent.com/openclaw/clawpilot-skills/main/skills/feishu-doc/"
+    }
+  ]
+}

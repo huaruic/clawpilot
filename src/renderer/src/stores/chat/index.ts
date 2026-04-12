@@ -45,6 +45,12 @@ interface ChatStore {
   sessionLabels: Record<string, string>
   /** Shared session list — single source of truth for sidebar + AllChatsPage */
   sessions: SessionSummary[]
+  /**
+   * One-shot composer prefill. Set by SkillsPage when user clicks "Try Now",
+   * consumed by ChatPage on mount (written to local input state, then cleared).
+   * Ephemeral — excluded from persist partialize.
+   */
+  pendingComposerInput: string | null
 
   // ── Session Actions ──
   setActiveSession: (key: string) => void
@@ -75,6 +81,9 @@ interface ChatStore {
   saveDraft: (sessionKey: string, text: string, attachments?: AttachedFile[]) => void
   clearDraft: (sessionKey: string) => void
 
+  // ── Composer Prefill ──
+  setPendingComposerInput: (text: string | null) => void
+
   // ── Derived ──
   getSessionMessages: (sessionKey: string) => ChatMessage[]
   isSessionStreaming: (sessionKey: string) => boolean
@@ -94,6 +103,7 @@ export const useChatStore = create<ChatStore>()(
       activeRuns: {},
       sessionLabels: {},
       sessions: [],
+      pendingComposerInput: null,
 
       // ── Session Actions ──
 
@@ -258,6 +268,8 @@ export const useChatStore = create<ChatStore>()(
       getSessionMessages: (sessionKey) => get().messages[sessionKey] ?? [],
 
       isSessionStreaming: (sessionKey) => get().streaming[sessionKey] ?? false,
+
+      setPendingComposerInput: (text) => set({ pendingComposerInput: text }),
     }),
     {
       name: 'catclaw-chat',

@@ -197,6 +197,7 @@ contextBridge.exposeInMainWorld('catclaw', {
       ipcRenderer.invoke('skills:setEnabled', params),
     delete: (params: { skillKey: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('skills:delete', params),
+    curatedRegistry: (): Promise<unknown> => ipcRenderer.invoke('skills:curatedRegistry'),
   },
 
   // ── Dashboard (Usage Analytics) ─────────────────────────────────────
