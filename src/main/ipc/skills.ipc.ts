@@ -6,8 +6,10 @@ import JSON5 from 'json5'
 import { DeleteSkillSchema, SetSkillEnabledSchema } from './schemas/skills.schema'
 import { getConfigPath, readWorkspaceRoot, removeSkillEntryConfig, writeSkillEnabled } from '../services/OpenClawConfigWriter'
 import { getBundledOpenClawSkillsDir, getOpenClawStateDir } from '../services/RuntimeLocator'
+import { getCuratedSkillsScanDir, readCuratedRegistry } from '../services/CuratedSkillsStore'
 
 type SkillSource =
+  | 'catclaw-curated'
   | 'openclaw-bundled'
   | 'openclaw-managed'
   | 'openclaw-workspace'
@@ -82,6 +84,10 @@ export function registerSkillsIpc(): void {
 
     return { ok: true }
   })
+
+  ipcMain.handle('skills:curatedRegistry', async () => {
+    return readCuratedRegistry()
+  })
 }
 
 async function readSkillsList(): Promise<SkillsListPayload> {
@@ -128,6 +134,7 @@ async function readSkillsConfig(): Promise<OpenClawSkillsConfig> {
 function resolveSkillRoots(workspaceRoot: string, extraDirs: string[]): SkillDiscoveryRoot[] {
   const stateDir = getOpenClawStateDir()
   return [
+    { dir: getCuratedSkillsScanDir(), source: 'catclaw-curated' },
     ...extraDirs.map((dir) => ({ dir: resolveUserPath(dir), source: 'openclaw-extra' as const })),
     { dir: getBundledOpenClawSkillsDir(), source: 'openclaw-bundled' },
     { dir: path.join(stateDir, 'skills'), source: 'openclaw-managed' },

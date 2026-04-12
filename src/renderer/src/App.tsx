@@ -22,7 +22,7 @@ function PageContent({ page, onNavigate }: { page: Page; onNavigate: (p: Page) =
     case 'providers': return <ProvidersPage />
     case 'channels': return <ChannelsPage />
     case 'agents': return <AgentsPage />
-    case 'skills': return <SkillsPage />
+    case 'skills': return <SkillsPage onNavigate={onNavigate} />
     case 'persona': return <PersonaPage />
     case 'security': return <SecurityPage />
     case 'doctor': return <DiagnosticsPage />

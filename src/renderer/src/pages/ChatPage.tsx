@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Plus, Paperclip, Globe, Mic, ChevronDown, ArrowUp,
   AlertTriangle, Loader2, Check,
-  Code2, FileText, Zap, Globe2,
+  Lightbulb, PenTool, Palette, FileMinus,
 } from 'lucide-react'
 import sleepSvg from '../assets/sleep.svg'
 import { MessageBubble } from '../components/chat/MessageBubble'
@@ -80,8 +80,8 @@ function useGreeting(): string {
 
 /* ── quick start cards config ── */
 
-const QUICK_START_ICONS = [Code2, FileText, Zap, Globe2] as const
-const QUICK_START_KEYS = ['Script', 'Analyze', 'Brainstorm', 'Research'] as const
+const QUICK_START_ICONS = [Lightbulb, PenTool, Palette, FileMinus] as const
+const QUICK_START_KEYS = ['Topic', 'Xiaohongshu', 'Poster', 'Summary'] as const
 
 /* ── helpers ── */
 
@@ -563,8 +563,18 @@ export function ChatPage({ onNavigate }: { onNavigate: (page: Page) => void }): 
   const setStreamingState = useChatStore((s) => s.setStreaming)
   const setActiveRun = useChatStore((s) => s.setActiveRun)
   const addUserMessage = useChatStore((s) => s.addUserMessage)
+  const pendingComposerInput = useChatStore((s) => s.pendingComposerInput)
+  const setPendingComposerInput = useChatStore((s) => s.setPendingComposerInput)
   const activeMessages = messages[activeSession] ?? []
   const isStreaming = streaming[activeSession] ?? false
+
+  // Consume one-shot composer prefill (set by SkillsPage "Try Now")
+  useEffect(() => {
+    if (pendingComposerInput) {
+      setInput(pendingComposerInput)
+      setPendingComposerInput(null)
+    }
+  }, [pendingComposerInput, setPendingComposerInput])
 
   // Load provider accounts
   useEffect(() => { void initProviders() }, [initProviders])
