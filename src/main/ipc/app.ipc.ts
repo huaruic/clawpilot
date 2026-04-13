@@ -3,9 +3,12 @@ import type { OpenClawProcessManager } from '../services/OpenClawProcessManager'
 import type { RuntimeState } from '../state/RuntimeState'
 import {
   readGatewayToken,
+  readSearchConfig,
   resetWorkspaceRoot,
+  writeSearchConfig,
   writeWorkspaceRoot,
 } from '../services/OpenClawConfigWriter'
+import type { SearchProvider } from '../services/OpenClawConfigWriter'
 import {
   getSystemLocale,
   readAppSettings,
@@ -128,6 +131,21 @@ export function registerAppIpc({ processManager, state, refreshSetup, getMainWin
     const result = await shell.openPath(path)
     if (result) {
       return { ok: false, error: result }
+    }
+
+    return { ok: true }
+  })
+
+  ipcMain.handle('app:getSearchConfig', async () => {
+    return await readSearchConfig()
+  })
+
+  ipcMain.handle('app:saveSearchConfig', async (_, raw) => {
+    const { provider, apiKey } = raw as { provider: SearchProvider; apiKey: string }
+    await writeSearchConfig(provider, apiKey)
+
+    if (state.snapshot.status === 'RUNNING') {
+      await processManager.restart()
     }
 
     return { ok: true }

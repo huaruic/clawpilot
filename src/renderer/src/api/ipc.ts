@@ -138,6 +138,31 @@ export interface SkillsListResult {
   skills: SkillInfo[]
 }
 
+export interface RegistrySkill {
+  skillKey: string
+  name: string
+  icon: string
+  category: string
+  description: string
+  tags: string[]
+  risk: string
+  files: string[]
+  downloadUrl: string
+}
+
+export interface RegistryResult {
+  skills: RegistrySkill[]
+  error?: string
+}
+
+export type SearchProvider = 'brave' | 'perplexity' | 'gemini' | 'grok' | 'kimi'
+
+export interface SearchConfig {
+  provider: SearchProvider | ''
+  apiKey: string
+  enabled: boolean
+}
+
 export interface CatClawAPI {
   app: {
     start: () => Promise<RuntimeSnapshot>
@@ -156,6 +181,8 @@ export interface CatClawAPI {
     chooseWorkspaceRoot: () => Promise<string | null>
     setWorkspaceRoot: (workspaceRoot: string) => Promise<RuntimeSnapshot>
     resetWorkspaceRoot: () => Promise<RuntimeSnapshot>
+    getSearchConfig: () => Promise<SearchConfig>
+    saveSearchConfig: (params: { provider: SearchProvider; apiKey: string }) => Promise<{ ok: boolean }>
     openDirectory: (path: string) => Promise<{ ok: boolean; error?: string }>
     onStatusChange: (cb: (snap: RuntimeSnapshot) => void) => () => void
   }
@@ -277,6 +304,8 @@ export interface CatClawAPI {
     list: () => Promise<SkillsListResult>
     setEnabled: (params: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
     delete: (params: { skillKey: string }) => Promise<{ ok: boolean }>
+    fetchRegistry: () => Promise<RegistryResult>
+    install: (params: { skillKey: string }) => Promise<{ ok: boolean }>
   }
   dashboard: {
     getUsage: (params?: { since?: number }) => Promise<import('../types/dashboard').UsageStoreData>

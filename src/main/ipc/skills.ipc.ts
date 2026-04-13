@@ -3,9 +3,21 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import JSON5 from 'json5'
-import { DeleteSkillSchema, SetSkillEnabledSchema } from './schemas/skills.schema'
+import { DeleteSkillSchema, InstallSkillSchema, SetSkillEnabledSchema } from './schemas/skills.schema'
 import { getConfigPath, readWorkspaceRoot, removeSkillEntryConfig, writeSkillEnabled } from '../services/OpenClawConfigWriter'
 import { getBundledOpenClawSkillsDir, getOpenClawStateDir } from '../services/RuntimeLocator'
+import { SkillRegistryClient } from '../services/SkillRegistryClient'
+import { SkillInstaller } from '../services/SkillInstaller'
+import type { OpenClawProcessManager } from '../services/OpenClawProcessManager'
+import type { RuntimeState } from '../state/RuntimeState'
+
+const REGISTRY_URL = 'https://raw.githubusercontent.com/openclaw/catclaw-skills/main/registry.json'
+const registryClient = new SkillRegistryClient(REGISTRY_URL)
+
+interface SkillsIpcDeps {
+  processManager: OpenClawProcessManager
+  state: RuntimeState
+}
 
 type SkillSource =
   | 'openclaw-bundled'
@@ -55,9 +67,13 @@ interface SkillDiscoveryRoot {
   source: SkillSource
 }
 
-export function registerSkillsIpc(): void {
+export function registerSkillsIpc(deps?: SkillsIpcDeps): void {
   ipcMain.handle('skills:list', async () => {
     return readSkillsList()
+  })
+
+  ipcMain.handle('skills:fetchRegistry', async () => {
+    return registryClient.fetchRegistry()
   })
 
   ipcMain.handle('skills:setEnabled', async (_, raw) => {
@@ -82,6 +98,25 @@ export function registerSkillsIpc(): void {
 
     return { ok: true }
   })
+
+  if (deps) {
+    const installer = new SkillInstaller({
+      registryClient,
+      managedSkillsDir: path.join(getOpenClawStateDir(), 'skills'),
+      writeSkillEnabled,
+      restartRuntime: async () => {
+        if (deps.state.snapshot.status === 'RUNNING') {
+          await deps.processManager.restart()
+        }
+      },
+    })
+
+    ipcMain.handle('skills:install', async (_, raw) => {
+      const { skillKey } = InstallSkillSchema.parse(raw)
+      await installer.install(skillKey)
+      return { ok: true }
+    })
+  }
 }
 
 async function readSkillsList(): Promise<SkillsListPayload> {
@@ -266,4 +301,13 @@ async function pathExists(target: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+export const _testExports = {
+  extractFrontmatter,
+  readFrontmatterValue,
+  readMetadataEmoji,
+  unquote,
+  escapeRegExp,
+  resolveUserPath,
 }

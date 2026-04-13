@@ -107,6 +107,9 @@ export async function ensureOpenClawBaseConfig(): Promise<void> {
 
   await fs.mkdir(workspaceRoot, { recursive: true })
 
+  const existingTools = (existing.tools as Record<string, unknown>) ?? {}
+  const existingWeb = (existingTools.web as Record<string, unknown>) ?? {}
+
   const updated = {
     ...existing,
     gateway: {
@@ -116,6 +119,29 @@ export async function ensureOpenClawBaseConfig(): Promise<void> {
     logging: {
       ...((existing.logging as Record<string, unknown>) ?? {}),
       file: path.join(stateDir, 'logs', 'openclaw.log'),
+    },
+    tools: {
+      ...existingTools,
+      web: {
+        ...existingWeb,
+        fetch: {
+          enabled: true,
+          maxChars: 50000,
+          maxCharsCap: 50000,
+          maxResponseBytes: 2_000_000,
+          timeoutSeconds: 30,
+          cacheTtlMinutes: 15,
+          maxRedirects: 3,
+          ...((existingWeb.fetch as Record<string, unknown>) ?? {}),
+        },
+        search: {
+          enabled: true,
+          maxResults: 5,
+          timeoutSeconds: 30,
+          cacheTtlMinutes: 15,
+          ...((existingWeb.search as Record<string, unknown>) ?? {}),
+        },
+      },
     },
     agents: {
       ...agents,
@@ -611,4 +637,54 @@ export async function syncRoutingToGatewayFormat(
   delete (updated as Record<string, unknown>).routing
 
   await fs.writeFile(configPath, JSON5.stringify(updated, null, 2), 'utf-8')
+}
+
+// ── Search Provider Config ────────────────────────────────────────
+
+export type SearchProvider = 'brave' | 'perplexity' | 'gemini' | 'grok' | 'kimi'
+
+export interface SearchConfig {
+  provider: SearchProvider | ''
+  apiKey: string
+  enabled: boolean
+}
+
+export async function readSearchConfig(): Promise<SearchConfig> {
+  const existing = await readExistingConfig()
+  const tools = (existing.tools as Record<string, unknown>) ?? {}
+  const web = (tools.web as Record<string, unknown>) ?? {}
+  const search = (web.search as Record<string, unknown>) ?? {}
+  return {
+    provider: (search.provider as SearchProvider) ?? '',
+    apiKey: (search.apiKey as string) ?? '',
+    enabled: search.enabled !== false,
+  }
+}
+
+export async function writeSearchConfig(provider: SearchProvider, apiKey: string): Promise<void> {
+  const configPath = getConfigPath()
+  await fs.mkdir(path.dirname(configPath), { recursive: true })
+  const existing = await readExistingConfig()
+  const tools = (existing.tools as Record<string, unknown>) ?? {}
+  const web = (tools.web as Record<string, unknown>) ?? {}
+  const search = (web.search as Record<string, unknown>) ?? {}
+  const configUpdated = {
+    ...existing,
+    tools: {
+      ...tools,
+      web: {
+        ...web,
+        search: {
+          ...search,
+          enabled: true,
+          provider,
+          apiKey,
+        },
+      },
+    },
+  }
+
+  delete (configUpdated as Record<string, unknown>).routing
+
+  await fs.writeFile(configPath, JSON5.stringify(configUpdated, null, 2), 'utf-8')
 }

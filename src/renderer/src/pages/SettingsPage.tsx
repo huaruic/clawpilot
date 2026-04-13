@@ -1,31 +1,39 @@
 import React, { useEffect, useState } from 'react'
-import { Monitor, FolderOpen } from 'lucide-react'
 import { useI18n } from '../i18n/I18nProvider'
-import type { AppLanguage, AppTheme } from '../api/ipc'
-import { useRuntimeStore } from '../stores/runtimeStore'
+import type { AppLanguage, SearchConfig, SearchProvider } from '../api/ipc'
+
+const SEARCH_PROVIDERS: Array<{ value: SearchProvider; label: string; hint: string }> = [
+  { value: 'brave', label: 'Brave Search', hint: 'Free 2,000 queries/month. Sign up at brave.com/search/api' },
+  { value: 'perplexity', label: 'Perplexity', hint: 'Via OpenRouter. No credit card needed.' },
+  { value: 'gemini', label: 'Gemini (Google)', hint: 'Google Search grounding. Requires Google AI API key.' },
+  { value: 'grok', label: 'Grok (xAI)', hint: 'X/Twitter search. Requires xAI API key.' },
+  { value: 'kimi', label: 'Kimi', hint: 'Alternative search provider.' },
+]
 
 export function SettingsPage(): React.ReactElement {
-  const { settings, t, updateSettings } = useI18n()
-  const { snapshot } = useRuntimeStore()
+  const { settings, systemLocale, resolvedLanguage, t, updateSettings } = useI18n()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [workspaceInput, setWorkspaceInput] = useState(snapshot.setup.workspaceRoot)
-  const [workspaceBusy, setWorkspaceBusy] = useState<'open' | null>(null)
-  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+
+  const [searchConfig, setSearchConfig] = useState<SearchConfig | null>(null)
+  const [searchProvider, setSearchProvider] = useState<SearchProvider | ''>('')
+  const [searchApiKey, setSearchApiKey] = useState('')
+  const [searchSaving, setSearchSaving] = useState(false)
+  const [searchMessage, setSearchMessage] = useState<string | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   useEffect(() => {
-    setWorkspaceInput(snapshot.setup.workspaceRoot)
-  }, [snapshot.setup.workspaceRoot])
+    void loadSearchConfig()
+  }, [])
 
-  async function handleThemeChange(theme: AppTheme): Promise<void> {
-    setSaving(true)
-    setError(null)
+  async function loadSearchConfig(): Promise<void> {
     try {
-      await updateSettings({ theme })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSaving(false)
+      const config = await window.catclaw.app.getSearchConfig()
+      setSearchConfig(config)
+      setSearchProvider(config.provider)
+      setSearchApiKey(config.apiKey)
+    } catch {
+      // ignore — settings page still works without search config
     }
   }
 
@@ -41,138 +49,152 @@ export function SettingsPage(): React.ReactElement {
     }
   }
 
-  async function handleOpenWorkspace(): Promise<void> {
-    setWorkspaceBusy('open')
-    setWorkspaceError(null)
+  async function handleSaveSearch(): Promise<void> {
+    if (!searchProvider || !searchApiKey.trim()) return
+
+    setSearchSaving(true)
+    setSearchError(null)
+    setSearchMessage(null)
     try {
-      const result = await window.catclaw.app.openDirectory(workspaceInput)
-      if (!result.ok) {
-        setWorkspaceError(result.error ?? t('app.settings.openWorkspaceFailed'))
-      }
+      await window.catclaw.app.saveSearchConfig({
+        provider: searchProvider,
+        apiKey: searchApiKey.trim(),
+      })
+      setSearchMessage('Search provider saved. Runtime will restart to apply changes.')
+      await loadSearchConfig()
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : String(err))
     } finally {
-      setWorkspaceBusy(null)
+      setSearchSaving(false)
     }
   }
 
-  const themeOptions: { value: AppTheme; label: string }[] = [
-    { value: 'system', label: t('app.settings.themeSystem') },
-    { value: 'light', label: t('app.settings.themeLight') },
-    { value: 'dark', label: t('app.settings.themeDark') },
-  ]
-
-  const languageOptions: { value: AppLanguage; label: string }[] = [
-    { value: 'system', label: t('app.settings.followSystem') },
-    { value: 'zh-CN', label: t('app.settings.simplifiedChinese') },
-    { value: 'en', label: t('app.settings.english') },
-  ]
+  const selectedProviderHint = SEARCH_PROVIDERS.find((p) => p.value === searchProvider)?.hint
 
   return (
-    <div className="cp-page max-w-3xl">
-      <h1 className="text-lg font-semibold text-foreground">{t('app.settings.title')}</h1>
+    <div className="flex flex-col h-full p-6 gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-white">{t('app.settings.title')}</h1>
+        <p className="text-sm text-zinc-500 mt-1">{t('app.settings.subtitle')}</p>
+      </div>
 
-      {/* General */}
-      <div className="space-y-5 rounded-xl border border-border bg-card p-4">
-        <h3 className="text-sm font-medium text-foreground">{t('app.settings.themeTitle')}</h3>
-
-        {/* Theme */}
+      {/* Language settings */}
+      <section className="rounded-xl border border-zinc-800 p-5 space-y-4">
         <div>
-          <label className="mb-1.5 block text-xs text-muted-foreground">{t('app.settings.themeLabel')}</label>
-          <div className="flex gap-1.5">
-            {themeOptions.map((opt) => (
-              <button
-                key={opt.value}
-                disabled={saving}
-                onClick={() => void handleThemeChange(opt.value)}
-                className={`btn-active-scale ${`rounded-lg px-4 py-1.5 text-xs transition-colors ${
-                  settings.theme === opt.value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-border text-muted-foreground hover:bg-accent'
-                }`} disabled:opacity-50`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-sm font-medium text-zinc-200">{t('app.settings.languageTitle')}</h2>
+          <p className="text-sm text-zinc-500 mt-1">{t('app.settings.languageHelp')}</p>
         </div>
 
-        {/* Language */}
-        <div>
-          <label className="mb-1.5 block text-xs text-muted-foreground">{t('app.settings.languageLabel')}</label>
-          <div className="flex gap-1.5">
-            {languageOptions.map((opt) => (
-              <button
-                key={opt.value}
-                disabled={saving}
-                onClick={() => void handleLanguageChange(opt.value)}
-                className={`btn-active-scale ${`rounded-lg px-4 py-1.5 text-xs transition-colors ${
-                  settings.language === opt.value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-border text-muted-foreground hover:bg-accent'
-                }`} disabled:opacity-50`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        <label className="block text-xs text-zinc-500">{t('app.settings.languageLabel')}</label>
+        <select
+          value={settings.language}
+          disabled={saving}
+          onChange={(event) => void handleLanguageChange(event.target.value as AppLanguage)}
+          className="w-full max-w-sm bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none transition-colors disabled:opacity-50"
+        >
+          <option value="system">{t('app.settings.followSystem')}</option>
+          <option value="zh-CN">{t('app.settings.simplifiedChinese')}</option>
+          <option value="en">{t('app.settings.english')}</option>
+        </select>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InfoCard label={t('app.settings.systemLocale')} value={systemLocale} />
+          <InfoCard
+            label={t('app.settings.effectiveLanguage')}
+            value={resolvedLanguage === 'zh-CN' ? t('app.settings.simplifiedChinese') : t('app.settings.english')}
+          />
         </div>
 
-        {saving && <p className="text-xs text-muted-foreground">{t('app.settings.saving')}</p>}
+        {saving && (
+          <p className="text-sm text-zinc-500">{t('app.settings.saving')}</p>
+        )}
+
         {error && (
-          <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+          <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
             {t('app.settings.saveErrorPrefix')} {error}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Advanced */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4 card-hover">
-        <div className="flex items-center gap-2">
-          <Monitor className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium text-foreground">{t('app.settings.workspaceTitle')}</h3>
-        </div>
-
-        <p className="text-xs text-muted-foreground">{t('app.settings.workspaceHelp')}</p>
-
+      {/* Search provider settings */}
+      <section className="rounded-xl border border-zinc-800 p-5 space-y-4">
         <div>
-          <label className="mb-1 block text-xs text-muted-foreground">{t('app.settings.activeWorkspaceRoot')}</label>
-          <div className="flex gap-2">
-            <input
-              value={workspaceInput}
-              readOnly
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-muted-foreground"
-            />
-            <button
-              onClick={() => void handleOpenWorkspace()}
-              disabled={!workspaceInput.trim() || workspaceBusy !== null}
-              className="btn-active-scale flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              {workspaceBusy === 'open' ? t('app.settings.openingWorkspace') : t('app.settings.openWorkspace')}
-            </button>
-          </div>
-          <p className="mt-1.5 text-[10px] text-muted-foreground">
-            {t('app.settings.currentSetupPhase')} <span className="font-mono text-foreground">{describeSetup(snapshot.setup.phase, t)}</span>
+          <h2 className="text-sm font-medium text-zinc-200">Search Provider</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Configure a search provider to unlock web search, research, and competitor analysis skills.
+            Web page fetching works without this — search is for finding new URLs.
           </p>
         </div>
 
-        {workspaceError && (
-          <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
-            {workspaceError}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">Status:</span>
+          {searchConfig?.apiKey ? (
+            <span className="rounded-full bg-green-950/50 px-2.5 py-1 text-xs text-green-300">
+              Configured ({searchConfig.provider})
+            </span>
+          ) : (
+            <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
+              Not configured
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <label className="block text-xs text-zinc-500">Provider</label>
+          <select
+            value={searchProvider}
+            onChange={(event) => setSearchProvider(event.target.value as SearchProvider)}
+            className="w-full max-w-sm bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none transition-colors"
+          >
+            <option value="">Select a provider...</option>
+            {SEARCH_PROVIDERS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+
+          {selectedProviderHint && (
+            <p className="text-xs text-zinc-500">{selectedProviderHint}</p>
+          )}
+
+          <label className="block text-xs text-zinc-500">API Key</label>
+          <input
+            type="password"
+            value={searchApiKey}
+            onChange={(event) => setSearchApiKey(event.target.value)}
+            placeholder="Paste your API key here"
+            className="w-full max-w-sm bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none transition-colors"
+          />
+
+          <button
+            onClick={() => void handleSaveSearch()}
+            disabled={searchSaving || !searchProvider || !searchApiKey.trim()}
+            className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {searchSaving ? 'Saving...' : 'Save Search Provider'}
+          </button>
+        </div>
+
+        {searchMessage && (
+          <div className="rounded-lg border border-green-900 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+            {searchMessage}
           </div>
         )}
-      </div>
+
+        {searchError && (
+          <div className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+            {searchError}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
 
-function describeSetup(
-  phase: 'gateway_setup' | 'model_setup' | 'bootstrap' | 'ready',
-  t: (key: string) => string,
-): string {
-  switch (phase) {
-    case 'gateway_setup': return t('app.status.gatewaySetup')
-    case 'model_setup': return t('app.status.modelSetup')
-    case 'bootstrap': return t('app.status.bootstrap')
-    case 'ready': return t('app.status.ready')
-  }
+function InfoCard({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-3">
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="text-sm text-zinc-200 font-mono mt-1">{value}</p>
+    </div>
+  )
 }
